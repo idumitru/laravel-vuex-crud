@@ -28,6 +28,10 @@ class LaravelVuexCrudProvider extends ServiceProvider
 	{
 		$this->registerLaravelCrudServiceGenerators();
 		$this->registerVuexModuleGenerator();
+
+		$this->mergeConfigFrom(
+			__DIR__.'/config/vuexcrud.php', 'vuexcrud'
+		);
 	}
 
 	/**

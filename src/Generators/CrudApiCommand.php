@@ -113,7 +113,7 @@ class CrudApiCommand extends Command
 	 */
 	protected function replaceNamespace(&$stub)
 	{
-		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$section_data = app()['config']["vuexcrud.sections.default"];
 		$namespace = trim($section_data['controller_namespace']);
 		$stub = str_replace('{{namespace}}', $namespace, $stub);
 		return $this;
@@ -140,7 +140,7 @@ class CrudApiCommand extends Command
 	 */
 	protected function getPath($name)
 	{
-		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$section_data = app()['config']["vuexcrud.sections.default"];
 		$controller_path = '/app/' . trim($section_data['controller_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'ApiController.php';
 		return base_path() . $controller_path;
 	}

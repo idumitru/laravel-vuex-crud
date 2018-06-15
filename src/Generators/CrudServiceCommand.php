@@ -38,6 +38,13 @@ class CrudServiceCommand extends Command
 	private $composer;
 
 	/**
+	 * The config section that defines paths and namespaces.
+	 *
+	 * @var string
+	 */
+	protected $crud_section = 'default';
+
+	/**
 	 * Create a new command instance.
 	 *
 	 * @param Filesystem $files
@@ -60,7 +67,17 @@ class CrudServiceCommand extends Command
 	{
 		$this->makeApi();
 	}
-
+	/**
+	 * Register bindings in the container.
+	 *
+	 * @return void
+	 */
+	public function register()
+	{
+		$this->mergeConfigFrom(
+			__DIR__.'/path/to/config/courier.php', 'courier'
+		);
+	}
 	/**
 	 * Execute the console command.
 	 *
@@ -113,7 +130,7 @@ class CrudServiceCommand extends Command
 	 */
 	protected function replaceNamespace(&$stub)
 	{
-		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$section_data = app()['config']["vuexcrud.sections.default"];
 		$namespace = trim($section_data['crudservice_namespace']);
 		$stub = str_replace('{{namespace}}', $namespace, $stub);
 		return $this;
@@ -140,7 +157,7 @@ class CrudServiceCommand extends Command
 	 */
 	protected function getPath($name)
 	{
-		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$section_data = app()['config']["vuexcrud.sections.default"];
 		$service_path = '/app/' . trim($section_data['crudservice_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'CrudService.php';
 		return base_path() . $service_path;
 	}
