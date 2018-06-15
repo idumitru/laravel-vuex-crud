@@ -2,6 +2,7 @@
 
 namespace SoftDreams\LaravelVuexCrud\Traits;
 
+use Illuminate\Filesystem\Filesystem;
 
 trait CrudServiceGeneratorFunctions
 {
@@ -55,8 +56,20 @@ trait CrudServiceGeneratorFunctions
 		$stub = $this->files->get(__DIR__ . '/../stubs/' . $stub_name . '.stub');
 
 		$this->replaceClassName($stub)
-			->replaceNamespace($stub , $component , $section);
+			->replaceNamespace($stub , $component , $section)
+			->replaceExtra($stub , $component , $section);
 		return $stub;
+	}
+
+	/**
+	 * Other replacements in the stub ... override in parent.
+	 *
+	 * @param  string $stub
+	 * @return $this
+	 */
+	protected function replaceExtra(&$stub , $component , $section)
+	{
+		return $this;
 	}
 
 	/**

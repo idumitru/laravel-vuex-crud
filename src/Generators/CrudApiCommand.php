@@ -6,10 +6,12 @@ use Illuminate\Console\Command;
 use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
 use Symfony\Component\Console\Input\InputArgument;
+use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
 class CrudApiCommand extends Command
 {
 	use DetectsApplicationNamespace;
+	use CrudServiceGeneratorFunctions;
 
 	/**
 	 * The console command name.
@@ -57,6 +59,30 @@ class CrudApiCommand extends Command
 		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $section));
 		$this->info('Api handler created successfully.');
 		$this->composer->dumpAutoloads();
+	}
+
+	/**
+	 * Other replacements in the stub
+	 *
+	 * @param  string $stub
+	 * @return $this
+	 */
+	protected function replaceExtra(&$stub , $component , $section)
+	{
+		$section_data = app()['config']["vuexcrud.sections." . $section];
+		$namespace = trim($section_data[$component]);
+		$base_controller_namespace = getAppNamespace() . 'Http\\Controllers';
+
+		if($namespace == $base_controller_namespace)
+		{
+			$stub = str_replace('{{name_space_controller}}', '', $stub);
+		}
+		else
+		{
+			$stub = str_replace('{{name_space_controller}}', "\n" . $base_controller_namespace . '\\Controller;', $stub);
+		}
+
+		return $this;
 	}
 
 	/**

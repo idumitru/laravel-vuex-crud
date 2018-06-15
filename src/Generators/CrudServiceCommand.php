@@ -55,7 +55,7 @@ class CrudServiceCommand extends Command
 	 */
 	public function makeApi()
 	{
-		$this->my_class_name = ucwords(camel_case($name)) . 'CrudService';
+		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
 
 		$folder_component		= 'crudservice_folder';
 		$namespace_component	= 'crudservice_namespace';

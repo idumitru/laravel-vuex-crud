@@ -1,9 +1,8 @@
 <?php
 
-namespace {{namespace}}Http\Controllers;
+namespace {{namespace}};
 
 use SoftDreams\LaravelVuexCrud\CrudService;
-
 
 class {{class}} extends CrudService
 {
