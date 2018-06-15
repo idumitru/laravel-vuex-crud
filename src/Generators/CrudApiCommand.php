@@ -120,6 +120,19 @@ class CrudApiCommand extends Command
 	}
 
 	/**
+	 * Build the directory for the class if necessary.
+	 *
+	 * @param  string $path
+	 * @return string
+	 */
+	protected function makeDirectory($path)
+	{
+		if (!$this->files->isDirectory(dirname($path))) {
+			$this->files->makeDirectory(dirname($path), 0777, true, true);
+		}
+	}
+
+	/**
 	 * Get the path to where we should store the migration.
 	 *
 	 * @param  string $name
