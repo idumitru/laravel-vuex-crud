@@ -1,0 +1,21 @@
+{
+    "name": "softdreams/laravel-vuex-crud",
+    "description": "A sweet crud generator for laravel with vue/vuex frontend",
+    "type": "library",
+    "require": {
+        "php": ">=7.1.3"
+    },
+    "license": "mit",
+    "authors": [
+        {
+            "name": "Ionut Dumitru",
+            "email": "ionut.dumitru@webland.ro"
+        }
+    ],
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "SoftDreams\\LaravelVuexCrud\\": "src/"
+        }
+    }
+}

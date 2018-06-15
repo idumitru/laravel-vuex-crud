@@ -1,7 +1,7 @@
 <?php
 
 
-namespace ClusterCS\LaravelVuexCrud;
+namespace SoftDreams\LaravelVuexCrud;
 
 use Illuminate\Support\ServiceProvider;
 
