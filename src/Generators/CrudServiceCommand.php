@@ -3,6 +3,9 @@
 namespace SoftDreams\LaravelVuexCrud\Generators;
 
 use Illuminate\Console\Command;
+use Illuminate\Console\DetectsApplicationNamespace;
+use Illuminate\Filesystem\Filesystem;
+use Symfony\Component\Console\Input\InputArgument;
 
 class CrudServiceCommand extends Command
 {
@@ -97,7 +100,7 @@ class CrudServiceCommand extends Command
 	 */
 	protected function replaceClassName(&$stub)
 	{
-		$className = ucwords(camel_case($this->argument('name')));
+		$className = ucwords(camel_case($this->argument('name'))) . 'CrudService';
 		$stub = str_replace('{{class}}', $className, $stub);
 		return $this;
 	}
@@ -110,7 +113,9 @@ class CrudServiceCommand extends Command
 	 */
 	protected function replaceNamespace(&$stub)
 	{
-		$stub = str_replace('{{namespace}}', $this->getAppNamespace(), $stub);
+		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$namespace = trim($section_data['crudservice_namespace']);
+		$stub = str_replace('{{namespace}}', $namespace, $stub);
 		return $this;
 	}
 
@@ -122,7 +127,9 @@ class CrudServiceCommand extends Command
 	 */
 	protected function getPath($name)
 	{
-		return base_path() . '/app/CrudServices/' . $name . '.php';
+		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$service_path = '/app/' . trim($section_data['crudservice_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'CrudService.php';
+		return base_path() . $service_path;
 	}
 
 	/**
@@ -135,4 +142,5 @@ class CrudServiceCommand extends Command
 		return [
 			['name', InputArgument::REQUIRED, 'Name of the api class to create.'],
 		];
-	}}
+	}
+}

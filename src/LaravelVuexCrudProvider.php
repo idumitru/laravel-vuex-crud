@@ -14,9 +14,10 @@ class LaravelVuexCrudProvider extends ServiceProvider
 	 */
 	public function boot()
 	{
-		//
+		$this->publishes([
+			__DIR__.'/config/vuexcrud.php' => config_path('vuexcrud.php'),
+		]);
 	}
-
 	/**
 	 * Register the application services.
 	 *

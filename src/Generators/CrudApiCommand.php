@@ -3,8 +3,11 @@
 namespace SoftDreams\LaravelVuexCrud\Generators;
 
 use Illuminate\Console\Command;
+use Illuminate\Console\DetectsApplicationNamespace;
+use Illuminate\Filesystem\Filesystem;
+use Symfony\Component\Console\Input\InputArgument;
 
-class CrudServiceCommand extends Command
+class CrudApiCommand extends Command
 {
 	use DetectsApplicationNamespace;
 
@@ -20,7 +23,7 @@ class CrudServiceCommand extends Command
 	 *
 	 * @var string
 	 */
-	protected $description = 'Create a new crud api class';
+	protected $description = 'Create a new crud api controller class';
 
 	/**
 	 * The filesystem instance.
@@ -97,7 +100,7 @@ class CrudServiceCommand extends Command
 	 */
 	protected function replaceClassName(&$stub)
 	{
-		$className = ucwords(camel_case($this->argument('name')));
+		$className = ucwords(camel_case($this->argument('name'))) . 'ApiController';
 		$stub = str_replace('{{class}}', $className, $stub);
 		return $this;
 	}
@@ -110,7 +113,9 @@ class CrudServiceCommand extends Command
 	 */
 	protected function replaceNamespace(&$stub)
 	{
-		$stub = str_replace('{{namespace}}', $this->getAppNamespace(), $stub);
+		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$namespace = trim($section_data['controller_namespace']);
+		$stub = str_replace('{{namespace}}', $namespace, $stub);
 		return $this;
 	}
 
@@ -122,7 +127,9 @@ class CrudServiceCommand extends Command
 	 */
 	protected function getPath($name)
 	{
-		return base_path() . '/app/Controllers/' . $name . 'Api.php';
+		$section_data = $this->app['config']["vuexcrud.sections.default"];
+		$controller_path = '/app/' . trim($section_data['controller_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'ApiController.php';
+		return base_path() . $controller_path;
 	}
 
 	/**
@@ -135,4 +142,5 @@ class CrudServiceCommand extends Command
 		return [
 			['name', InputArgument::REQUIRED, 'Name of the api class to create.'],
 		];
-	}}
+	}
+}
