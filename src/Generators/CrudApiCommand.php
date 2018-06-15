@@ -5,7 +5,6 @@ namespace SoftDreams\LaravelVuexCrud\Generators;
 use Illuminate\Console\Command;
 use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
-use Symfony\Component\Console\Input\InputArgument;
 use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
 class CrudApiCommand extends Command
@@ -18,7 +17,7 @@ class CrudApiCommand extends Command
 	 *
 	 * @var string
 	 */
-	protected $name = 'vuexcrud:make:api';
+	protected $name = 'vuexcrud:make:api {name} {section=default}';
 
 	/**
 	 * The console command description.
@@ -35,7 +34,15 @@ class CrudApiCommand extends Command
 	 */
 	public function handle()
 	{
-		$this->makeApi();
+		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
+		$this->crud_section = $this->argument('section');
+
+		if(!app()['config']["vuexcrud.sections." . $this->crud_section])
+		{
+			return $this->error('Configuration section "' . $this->crud_section . '" does not exists!');
+		}
+
+		$this->runGenerator();
 	}
 
 	/**
@@ -43,20 +50,17 @@ class CrudApiCommand extends Command
 	 *
 	 * @return mixed
 	 */
-	public function makeApi()
+	public function runGenerator()
 	{
-		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'ApiController';
-
 		$folder_component		= 'controller_folder';
 		$namespace_component	= 'controller_namespace';
-		$section				= 'default';
 		$stub_name				= 'crudapi';
 
-		if ($this->files->exists($path = $this->getPath($folder_component , $section))) {
+		if ($this->files->exists($path = $this->getPath($folder_component , $this->crud_section))) {
 			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
-		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $section));
+		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $this->crud_section));
 		$this->info('Api handler created successfully.');
 		$this->composer->dumpAutoloads();
 	}
@@ -71,7 +75,7 @@ class CrudApiCommand extends Command
 	{
 		$section_data = app()['config']["vuexcrud.sections." . $section];
 		$namespace = trim($section_data[$component]);
-		$base_controller_namespace = getAppNamespace() . 'Http\\Controllers';
+		$base_controller_namespace = $this->getAppNamespace() . 'Http\\Controllers';
 
 		if($namespace == $base_controller_namespace)
 		{
@@ -83,17 +87,5 @@ class CrudApiCommand extends Command
 		}
 
 		return $this;
-	}
-
-	/**
-	 * Get the console command arguments.
-	 *
-	 * @return array
-	 */
-	protected function getArguments()
-	{
-		return [
-			['name', InputArgument::REQUIRED, 'Name of the api class to create.'],
-		];
 	}
 }

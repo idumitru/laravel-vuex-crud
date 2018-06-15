@@ -5,7 +5,6 @@ namespace SoftDreams\LaravelVuexCrud\Generators;
 use Illuminate\Console\Command;
 use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
-use Symfony\Component\Console\Input\InputArgument;
 use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
 class CrudServiceCommand extends Command
@@ -18,7 +17,7 @@ class CrudServiceCommand extends Command
 	 *
 	 * @var string
 	 */
-	protected $name = 'vuexcrud:make:service';
+	protected $name = 'vuexcrud:make:service {name} {section=default}';
 
 	/**
 	 * The console command description.
@@ -35,7 +34,15 @@ class CrudServiceCommand extends Command
 	 */
 	public function handle()
 	{
-		$this->makeApi();
+		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
+		$this->crud_section = $this->argument('section');
+
+		if(!app()['config']["vuexcrud.sections." . $this->crud_section])
+		{
+			return $this->error('Configuration section "' . $this->crud_section . '" does not exists!');
+		}
+
+		$this->runGenerator();
 	}
 	/**
 	 * Register bindings in the container.
@@ -45,7 +52,7 @@ class CrudServiceCommand extends Command
 	public function register()
 	{
 		$this->mergeConfigFrom(
-			__DIR__.'/path/to/config/courier.php', 'courier'
+			__DIR__.'/config/vuexcrud.php', 'vuexcrud'
 		);
 	}
 	/**
@@ -53,33 +60,18 @@ class CrudServiceCommand extends Command
 	 *
 	 * @return mixed
 	 */
-	public function makeApi()
+	public function runGenerator()
 	{
-		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
-
 		$folder_component		= 'crudservice_folder';
 		$namespace_component	= 'crudservice_namespace';
-		$section				= 'default';
 		$stub_name				= 'crudservice';
 
-		if ($this->files->exists($path = $this->getPath($folder_component , $section))) {
+		if ($this->files->exists($path = $this->getPath($folder_component , $this->crud_section))) {
 			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
-		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $section));
+		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $this->crud_section));
 		$this->info('Crud service created successfully.');
 		$this->composer->dumpAutoloads();
-	}
-
-	/**
-	 * Get the console command arguments.
-	 *
-	 * @return array
-	 */
-	protected function getArguments()
-	{
-		return [
-			['name', InputArgument::REQUIRED, 'Name of the crud service class to create.'],
-		];
 	}
 }
