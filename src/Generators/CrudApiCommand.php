@@ -26,31 +26,6 @@ class CrudApiCommand extends Command
 	protected $description = 'Create a new crud api controller class';
 
 	/**
-	 * The filesystem instance.
-	 *
-	 * @var Filesystem
-	 */
-	protected $files;
-
-	/**
-	 * @var Composer
-	 */
-	private $composer;
-
-	/**
-	 * Create a new command instance.
-	 *
-	 * @param Filesystem $files
-	 * @param Composer $composer
-	 */
-	public function __construct(Filesystem $files)
-	{
-		parent::__construct();
-		$this->files = $files;
-		$this->composer = app()['composer'];
-	}
-
-	/**
 	 * Alias for the fire method.
 	 *
 	 * In Laravel 5.5 the fire() method has been renamed to handle().
@@ -68,81 +43,20 @@ class CrudApiCommand extends Command
 	 */
 	public function makeApi()
 	{
-		$name = $this->argument('name');
-		if ($this->files->exists($path = $this->getPath($name))) {
-			return $this->error($this->type . ' already exists!');
+		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'ApiController';
+
+		$folder_component		= 'controller_folder';
+		$namespace_component	= 'controller_namespace';
+		$section				= 'default';
+		$stub_name				= 'crudapi';
+
+		if ($this->files->exists($path = $this->getPath($folder_component , $section))) {
+			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
-		$this->files->put($path, $this->compileApiStub());
+		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $section));
 		$this->info('Api handler created successfully.');
 		$this->composer->dumpAutoloads();
-	}
-
-	/**
-	 * Compile the api stub.
-	 *
-	 * @return string
-	 */
-	protected function compileApiStub()
-	{
-		$stub = $this->files->get(__DIR__ . '/../stubs/crudapi.stub');
-
-		$this->replaceClassName($stub)
-			->replaceNamespace($stub);
-		return $stub;
-	}
-
-	/**
-	 * Replace the class name in the stub.
-	 *
-	 * @param  string $stub
-	 * @return $this
-	 */
-	protected function replaceClassName(&$stub)
-	{
-		$className = ucwords(camel_case($this->argument('name'))) . 'ApiController';
-		$stub = str_replace('{{class}}', $className, $stub);
-		return $this;
-	}
-
-	/**
-	 * Replace the namespace in the stub.
-	 *
-	 * @param  string $stub
-	 * @return $this
-	 */
-	protected function replaceNamespace(&$stub)
-	{
-		$section_data = app()['config']["vuexcrud.sections.default"];
-		$namespace = trim($section_data['controller_namespace']);
-		$stub = str_replace('{{namespace}}', $namespace, $stub);
-		return $this;
-	}
-
-	/**
-	 * Build the directory for the class if necessary.
-	 *
-	 * @param  string $path
-	 * @return string
-	 */
-	protected function makeDirectory($path)
-	{
-		if (!$this->files->isDirectory(dirname($path))) {
-			$this->files->makeDirectory(dirname($path), 0777, true, true);
-		}
-	}
-
-	/**
-	 * Get the path to where we should store the migration.
-	 *
-	 * @param  string $name
-	 * @return string
-	 */
-	protected function getPath($name)
-	{
-		$section_data = app()['config']["vuexcrud.sections.default"];
-		$controller_path = '/app/' . trim($section_data['controller_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'ApiController.php';
-		return base_path() . $controller_path;
 	}
 
 	/**

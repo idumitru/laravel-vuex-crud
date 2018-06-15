@@ -6,10 +6,12 @@ use Illuminate\Console\Command;
 use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
 use Symfony\Component\Console\Input\InputArgument;
+use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
 class CrudServiceCommand extends Command
 {
 	use DetectsApplicationNamespace;
+	use CrudServiceGeneratorFunctions;
 
 	/**
 	 * The console command name.
@@ -24,38 +26,6 @@ class CrudServiceCommand extends Command
 	 * @var string
 	 */
 	protected $description = 'Create a new crud service class';
-
-	/**
-	 * The filesystem instance.
-	 *
-	 * @var Filesystem
-	 */
-	protected $files;
-
-	/**
-	 * @var Composer
-	 */
-	private $composer;
-
-	/**
-	 * The config section that defines paths and namespaces.
-	 *
-	 * @var string
-	 */
-	protected $crud_section = 'default';
-
-	/**
-	 * Create a new command instance.
-	 *
-	 * @param Filesystem $files
-	 * @param Composer $composer
-	 */
-	public function __construct(Filesystem $files)
-	{
-		parent::__construct();
-		$this->files = $files;
-		$this->composer = app()['composer'];
-	}
 
 	/**
 	 * Alias for the fire method.
@@ -85,81 +55,20 @@ class CrudServiceCommand extends Command
 	 */
 	public function makeApi()
 	{
-		$name = $this->argument('name');
-		if ($this->files->exists($path = $this->getPath($name))) {
-			return $this->error($this->type . ' already exists!');
+		$this->my_class_name = ucwords(camel_case($name)) . 'CrudService';
+
+		$folder_component		= 'crudservice_folder';
+		$namespace_component	= 'crudservice_namespace';
+		$section				= 'default';
+		$stub_name				= 'crudservice';
+
+		if ($this->files->exists($path = $this->getPath($folder_component , $section))) {
+			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
-		$this->files->put($path, $this->compileApiStub());
-		$this->info('Api handler created successfully.');
+		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $section));
+		$this->info('Crud service created successfully.');
 		$this->composer->dumpAutoloads();
-	}
-
-	/**
-	 * Compile the api stub.
-	 *
-	 * @return string
-	 */
-	protected function compileApiStub()
-	{
-		$stub = $this->files->get(__DIR__ . '/../stubs/crudservice.stub');
-
-		$this->replaceClassName($stub)
-			->replaceNamespace($stub);
-		return $stub;
-	}
-
-	/**
-	 * Replace the class name in the stub.
-	 *
-	 * @param  string $stub
-	 * @return $this
-	 */
-	protected function replaceClassName(&$stub)
-	{
-		$className = ucwords(camel_case($this->argument('name'))) . 'CrudService';
-		$stub = str_replace('{{class}}', $className, $stub);
-		return $this;
-	}
-
-	/**
-	 * Replace the namespace in the stub.
-	 *
-	 * @param  string $stub
-	 * @return $this
-	 */
-	protected function replaceNamespace(&$stub)
-	{
-		$section_data = app()['config']["vuexcrud.sections.default"];
-		$namespace = trim($section_data['crudservice_namespace']);
-		$stub = str_replace('{{namespace}}', $namespace, $stub);
-		return $this;
-	}
-
-	/**
-	 * Build the directory for the class if necessary.
-	 *
-	 * @param  string $path
-	 * @return string
-	 */
-	protected function makeDirectory($path)
-	{
-		if (!$this->files->isDirectory(dirname($path))) {
-			$this->files->makeDirectory(dirname($path), 0777, true, true);
-		}
-	}
-
-	/**
-	 * Get the path to where we should store the migration.
-	 *
-	 * @param  string $name
-	 * @return string
-	 */
-	protected function getPath($name)
-	{
-		$section_data = app()['config']["vuexcrud.sections.default"];
-		$service_path = '/app/' . trim($section_data['crudservice_folder'] , " /\t\n\r\0\x0B") . '/' . $name . 'CrudService.php';
-		return base_path() . $service_path;
 	}
 
 	/**
@@ -170,7 +79,7 @@ class CrudServiceCommand extends Command
 	protected function getArguments()
 	{
 		return [
-			['name', InputArgument::REQUIRED, 'Name of the api class to create.'],
+			['name', InputArgument::REQUIRED, 'Name of the crud service class to create.'],
 		];
 	}
 }
