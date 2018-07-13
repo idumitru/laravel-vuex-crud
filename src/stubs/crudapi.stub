@@ -1,19 +1,24 @@
 <?php
 
 namespace {{namespace}};
-{{name_space_controller}}
+
+use SoftDreams\LaravelVuexCrud\CrudController;
 use Illuminate\Http\Request;
 
-class {{class}} extends Controller
+class {{class}} extends CrudController
 {
     /**
      * Create a new controller instance.
      *
      * @return void
      */
+
+    protected $crud_services = [];
+
     public function __construct()
     {
         //$this->middleware('auth');
-    }
 
+		parent::__construct();
+    }
 }

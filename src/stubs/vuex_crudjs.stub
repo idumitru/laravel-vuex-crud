@@ -1,0 +1,305 @@
+function randomIntFromInterval(min, max)
+{
+	return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
+function generateCreateItem(service, tag)
+{
+	return function (context, item_data) {
+		return new Promise((success, failed) => {
+
+			let unit_name = tag + 'CreateItem' + randomIntFromInterval(1000, 100000);
+			let call_data = {
+				unit: unit_name,
+				service: service,
+				method: 'CreateItem',
+				tag: tag,
+				type: 'crud',
+				data: item_data
+			};
+
+			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
+				data => {
+					for (let i = 0; i < data.length; i++)
+					{
+						let found = 0;
+						if (data[i].unit === unit_name)
+						{
+							found = 1;
+							if (data[i].unit_response.status === 'OK')
+							{
+								context.commit(tag + 'CreateItem', data[i].unit_response.data);
+								success(data[i].unit_response.data);
+							}
+							else
+							{
+								failed(data[i].unit_response.reason);
+							}
+						}
+						if (found === 0)
+						{
+							reject('No match for response for ' + unit_name);
+						}
+					}
+				},
+				reject => {
+					failed(reject);
+				}
+			);
+		});
+	}
+}
+
+
+function generateFetchItems(service, tag)
+{
+	return function (context, items) {
+		return new Promise((success, failed) => {
+
+			let unit_name = tag + 'FetchItems' + randomIntFromInterval(1000, 100000);
+			let call_data = {
+				unit: unit_name,
+				service: service,
+				method: 'FetchItems',
+				tag: tag,
+				type: 'crud',
+				data: items
+			};
+
+			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
+				data => {
+					let found = 0;
+					for (let i = 0; i < data.length; i++)
+					{
+						if (data[i].unit === unit_name)
+						{
+							found = 1;
+							if (data[i].unit_response.status === 'OK')
+							{
+								context.commit(tag + 'StoreItems', data[i].unit_response.data);
+								success();
+							}
+							else
+							{
+								failed(data[i].unit_response.reason);
+							}
+						}
+					}
+					if (found === 0)
+					{
+						reject('No match for response for ' + unit_name);
+					}
+				},
+				reject => {
+					failed(reject);
+				}
+			);
+		});
+	}
+}
+
+function generateDeleteItem(service, tag)
+{
+	return function (context, item_id) {
+		return new Promise((success, failed) => {
+
+			let unit_name = tag + 'DeleteItem' + randomIntFromInterval(1000, 100000);
+			let call_data = {
+				unit: unit_name,
+				service: service,
+				method: 'DeleteItem',
+				tag: tag,
+				type: 'crud',
+				data: item_id
+			};
+
+			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
+				data => {
+					let found = 0;
+					for (let i = 0; i < data.length; i++)
+					{
+						if (data[i].unit === unit_name)
+						{
+							found = 1;
+							if (data[i].unit_response.status === 'OK')
+							{
+								context.commit(tag + 'DeleteItem', item_id);
+								success();
+							}
+							else
+							{
+								failed(data[i].unit_response.reason);
+							}
+						}
+					}
+					if (found === 0)
+					{
+						reject('No match for response for ' + unit_name);
+					}
+				},
+				reject => {
+					failed(reject);
+				}
+			);
+		});
+	}
+}
+
+function generateEditItem(service, tag)
+{
+	return function (context, edit_data) {
+		return new Promise((success, failed) => {
+
+			let unit_name = tag + 'EditItem' + randomIntFromInterval(1000, 100000);
+			let call_data = {
+				unit: unit_name,
+				service: service,
+				method: 'EditItem',
+				tag: tag,
+				type: 'crud',
+				data: edit_data
+			};
+
+			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
+				data => {
+					let found = 0;
+					for (let i = 0; i < data.length; i++)
+					{
+						if (data[i].unit === unit_name)
+						{
+							found = 1;
+							if (data[i].unit_response.status === 'OK')
+							{
+								context.commit(tag + 'EditItem', edit_data);
+								success();
+							}
+							else
+							{
+								failed(data[i].unit_response.reason);
+							}
+						}
+					}
+					if (found === 0)
+					{
+						reject('No match for response for ' + unit_name);
+					}
+				},
+				reject => {
+					failed(reject);
+				}
+			);
+		});
+	}
+}
+
+function generateActions(actions, service, tag)
+{
+	actions[tag + 'CreateItem'] = generateCreateItem(service, tag);
+	actions[tag + 'FetchItems'] = generateFetchItems(service, tag);
+	actions[tag + 'DeleteItem'] = generateDeleteItem(service, tag);
+	actions[tag + 'EditItem'] = generateEditItem(service, tag);
+}
+
+function generateMutations(mutations, var_name, tag)
+{
+	mutations[tag + 'CreateItem'] = function (state, item) {
+		state[var_name].push(item);
+	};
+
+	mutations[tag + 'StoreItems'] = function (state, items) {
+		state[var_name] = JSON.parse(JSON.stringify(items));
+	};
+
+	mutations[tag + 'DeleteItem'] = function (state, item_id) {
+		let remove_index = -1;
+		for (let i = 0; i < state[var_name].length; i++)
+		{
+			if (state[var_name][i].id === item_id)
+			{
+				remove_index = i;
+				break;
+			}
+		}
+
+		if (remove_index !== -1)
+		{
+			state[var_name].splice(remove_index, 1);
+		}
+	};
+
+	mutations[tag + 'EditItem'] = function (state, edit_data) {
+		for (let i = 0; i < state[var_name].length; i++)
+		{
+			if (state[var_name][i].id === edit_data.id)
+			{
+				for (let j = 0; j < edit_data.columns.length; j++)
+				{
+					if (edit_data.columns[j].column_name in state[var_name][i])
+					{
+						state[var_name][i][edit_data.columns[j].column_name] = edit_data.columns[j].column_value;
+					}
+				}
+				break;
+			}
+		}
+	};
+}
+
+function generateGetters(getters, var_name, tag)
+{
+	getters[tag + 'GetItems'] = function (state) {
+		return state[var_name];
+	}
+}
+
+function getState(crud_variables)
+{
+	let state = {};
+	for (let i = 0; i < crud_variables.length; i++)
+	{
+		state[crud_variables[i].name] = [];
+	}
+
+	return state;
+}
+
+function getActions(crud_variables)
+{
+	let actions = {};
+	for (let i = 0; i < crud_variables.length; i++)
+	{
+		generateActions(actions, crud_variables[i].service, crud_variables[i].tag);
+	}
+
+	return actions;
+}
+
+function getMutations(crud_variables)
+{
+	let mutations = {};
+	for (let i = 0; i < crud_variables.length; i++)
+	{
+		generateMutations(mutations, crud_variables[i].name, crud_variables[i].tag);
+	}
+
+	return mutations;
+}
+
+function getGetters(crud_variables)
+{
+	let getters = {};
+	for (let i = 0; i < crud_variables.length; i++)
+	{
+		generateGetters(getters, crud_variables[i].name, crud_variables[i].tag);
+	}
+
+	return getters;
+}
+
+
+export default {
+	getState,
+	getActions,
+	getMutations,
+	getGetters
+}

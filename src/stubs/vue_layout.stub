@@ -1,0 +1,12 @@
+<template>
+    <div>
+    	<vue-router></vue-router>
+    </div>
+</template>
+
+<script>
+    export default {
+        mounted() {
+        }
+    }
+</script>

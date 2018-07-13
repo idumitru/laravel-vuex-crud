@@ -1,0 +1,74 @@
+const namespaced = true;
+
+const state = {};
+
+const getters = {};
+
+const actions = {
+	callApi(context, call_data)
+	{
+
+		return new Promise((resolve, reject) => {
+			let payload = {
+				units: [
+					call_data,
+				]
+			};
+
+			axios.post(`/adminapi`, payload).then(
+				(response) => {
+					if(('status' in response.data) && response.data.status === 'OK')
+					{
+						if(!('response_data' in response.data))
+						{
+							reject('Missing response data');
+						}
+						else if(response.data.response_data.length === 0)
+						{
+							reject('Data request returned no information for ' + call_data.unit);
+						}
+						else
+						{
+							resolve(response.data.response_data);
+						}
+					}
+					else if(('status' in response.data) && response.data.status === 'FAILED')
+					{
+						if(('permission_fail' in response.data) && response.data.permission_fail === TRUE)
+						{
+							reject('Permission failure: ' . response.data.reason);
+						}
+						else
+						{
+							reject(response.data.reason);
+						}
+					}
+					else
+					{
+						reject('Unknown failure in API call');
+					}
+				},
+				(error) => {
+					if(('permission_fail' in error.data) && error.data.permission_fail === true)
+					{
+						reject('Permission failure: ' + error.data.reason);
+					}
+					else
+					{
+						reject('API call has failed');
+					}
+				}
+			);
+		});
+	}
+};
+
+const mutations = {};
+
+export default {
+	namespaced,
+	state,
+	getters,
+	actions,
+	mutations
+}

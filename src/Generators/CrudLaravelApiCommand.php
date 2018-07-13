@@ -7,7 +7,7 @@ use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
 use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
-class CrudServiceCommand extends Command
+class CrudLaravelApiCommand extends Command
 {
 	use DetectsApplicationNamespace;
 	use CrudServiceGeneratorFunctions;
@@ -17,24 +17,18 @@ class CrudServiceCommand extends Command
 	 *
 	 * @var string
 	 */
-	protected $name = 'vuexcrud:make:service {name} {section=default}';
+	protected $signature = 'vuexcrud:laravel:make:api {name} {section=default}';
 
 	/**
 	 * The console command description.
 	 *
 	 * @var string
 	 */
-	protected $description = 'Create a new crud service class';
+	protected $description = 'Create a new crud api controller class';
 
-	/**
-	 * Alias for the fire method.
-	 *
-	 * In Laravel 5.5 the fire() method has been renamed to handle().
-	 * This alias provides support for both Laravel 5.4 and 5.5.
-	 */
 	public function handle()
 	{
-		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
+		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'ApiController';
 		$this->crud_section = $this->argument('section');
 
 		if(!app()['config']["vuexcrud.sections." . $this->crud_section])
@@ -44,17 +38,7 @@ class CrudServiceCommand extends Command
 
 		$this->runGenerator();
 	}
-	/**
-	 * Register bindings in the container.
-	 *
-	 * @return void
-	 */
-	public function register()
-	{
-		$this->mergeConfigFrom(
-			__DIR__.'/config/vuexcrud.php', 'vuexcrud'
-		);
-	}
+
 	/**
 	 * Execute the console command.
 	 *
@@ -62,16 +46,16 @@ class CrudServiceCommand extends Command
 	 */
 	public function runGenerator()
 	{
-		$folder_component		= 'crudservice_folder';
-		$namespace_component	= 'crudservice_namespace';
-		$stub_name				= 'crudservice';
+		$folder_component		= 'controller_folder';
+		$namespace_component	= 'controller_namespace';
+		$stub_name				= 'crudapi';
 
 		if ($this->files->exists($path = $this->getPath($folder_component , $this->crud_section))) {
 			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
 		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $this->crud_section));
-		$this->info('Crud service created successfully.');
+		$this->info('Api handler created successfully.');
 		$this->composer->dumpAutoloads();
 	}
 }

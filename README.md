@@ -45,3 +45,19 @@ php artisan migrate
 php artisan serve
 
 6. Point your browser to http://127.0.0.1:8000/ and you should see the new laravel app you just created
+
+Commands:
+$ php artisan vuexcrud:laravel:make:api admin
+Api handler created successfully.
+
+$ php artisan vuexcrud:laravel:make:service companies cici
+Configuration section "cici" does not exists!
+
+$ php artisan vuexcrud:vue:make:app admin
+Vue tree for baubau created successfully
+
+$ php artisan vuexcrud:vue:make:layout admin main
+Layout Main already exits!
+
+$ php artisan vuexcrud:vue:make:page admin main companies
+Layout Main already exits!

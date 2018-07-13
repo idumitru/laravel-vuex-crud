@@ -40,14 +40,29 @@ class LaravelVuexCrudProvider extends ServiceProvider
 	private function registerLaravelCrudServiceGenerators()
 	{
 		$this->app->singleton('command.softdreams.vuexcrud.service', function ($app) {
-			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudServiceCommand'];
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudLaravelServiceCommand'];
 		});
 		$this->commands('command.softdreams.vuexcrud.service');
 
 		$this->app->singleton('command.softdreams.vuexcrud.api', function ($app) {
-			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudApiCommand'];
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudLaravelApiCommand'];
 		});
 		$this->commands('command.softdreams.vuexcrud.api');
+
+		$this->app->singleton('command.softdreams.vuexcrud.vueapp', function ($app) {
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudVueAppCommand'];
+		});
+		$this->commands('command.softdreams.vuexcrud.vueapp');
+
+		$this->app->singleton('command.softdreams.vuexcrud.vuelayout', function ($app) {
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudVueLayoutCommand'];
+		});
+		$this->commands('command.softdreams.vuexcrud.vuelayout');
+
+		$this->app->singleton('command.softdreams.vuexcrud.vuepage', function ($app) {
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudVuePageCommand'];
+		});
+		$this->commands('command.softdreams.vuexcrud.vuepage');
 	}
 
 	private function registerVuexModuleGenerator()

@@ -112,6 +112,17 @@ trait CrudServiceGeneratorFunctions
 	}
 
 	/**
+	 * Build the directory for the class if necessary.
+	 *
+	 * @param  string $path
+	 * @return string
+	 */
+	protected function createDirectory($path)
+	{
+		$this->files->makeDirectory($path, 0777, true, true);
+	}
+
+	/**
 	 * Get the path to where we should store the migration.
 	 *
 	 * @param  string $name
@@ -122,5 +133,33 @@ trait CrudServiceGeneratorFunctions
 		$section_data = app()['config']["vuexcrud.sections." . $section];
 		$file_path = '/app/' . trim($section_data[$component] , " /\t\n\r\0\x0B") . '/' . $this->my_class_name . '.php';
 		return base_path() . $file_path;
+	}
+
+	/**
+	 * Get the path to where we should store vue components.
+	 *
+	 * @param  string $name
+	 * @return string
+	 */
+	protected function getVuePath($component , $section)
+	{
+		$section_data = app()['config']["vuexcrud.sections." . $section];
+		$file_path = '/' . trim($section_data[$component] , " /\t\n\r\0\x0B");
+
+		return base_path() . $file_path;
+	}
+
+	/**
+	 * Get the path to where we should store vue components.
+	 *
+	 * @param  string $name
+	 * @return string
+	 */
+	protected function getVueTreePath($path , $component , $section)
+	{
+		$section_data = app()['config']["vuexcrud.sections." . $section . ".vue_tree"];
+		$file_path = '/' . trim($section_data[$component] , " /\t\n\r\0\x0B");
+
+		return $path . $file_path;
 	}
 }

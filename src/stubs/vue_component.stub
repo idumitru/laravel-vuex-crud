@@ -1,0 +1,12 @@
+<template>
+    <div>
+    	Hello from Vue World!
+    </div>
+</template>
+
+<script>
+    export default {
+        mounted() {
+        }
+    }
+</script>

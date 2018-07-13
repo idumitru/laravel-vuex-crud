@@ -22,7 +22,16 @@ return [
 			'controller_folder' => '/Http/Controllers',
 			'controller_namespace' => 'App\\Http\\Controllers',
 			'crudservice_folder' => '/Services/CrudServices',
-			'crudservice_namespace' => 'App\\Http\\CrudServices'
+			'crudservice_namespace' => 'App\\Services\\CrudServices',
+			'vue_root' => '/resources/assets/js/vuexcrud',
+			'vue_common' => '/resources/assets/js/vuexcrud/vue_common',
+			'vue_tree' => [
+				'components' => 'components',
+				'controllers' => 'controllers',
+				'layouts' => 'layouts',
+				'pages' => 'pages',
+				'store' => 'store',
+			]
 		],
 
 		/*

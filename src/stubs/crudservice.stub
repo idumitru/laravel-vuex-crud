@@ -6,5 +6,5 @@ use SoftDreams\LaravelVuexCrud\CrudService;
 
 class {{class}} extends CrudService
 {
-
+	public static $service_name = '{{crudname}}';
 }

@@ -7,7 +7,7 @@ use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
 use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
 
-class CrudApiCommand extends Command
+class CrudLaravelServiceCommand extends Command
 {
 	use DetectsApplicationNamespace;
 	use CrudServiceGeneratorFunctions;
@@ -17,21 +17,15 @@ class CrudApiCommand extends Command
 	 *
 	 * @var string
 	 */
-	protected $name = 'vuexcrud:make:api {name} {section=default}';
+	protected $signature = 'vuexcrud:laravel:make:service {name} {section=default}';
 
 	/**
 	 * The console command description.
 	 *
 	 * @var string
 	 */
-	protected $description = 'Create a new crud api controller class';
+	protected $description = 'Create a new crud service class';
 
-	/**
-	 * Alias for the fire method.
-	 *
-	 * In Laravel 5.5 the fire() method has been renamed to handle().
-	 * This alias provides support for both Laravel 5.4 and 5.5.
-	 */
 	public function handle()
 	{
 		$this->my_class_name = ucwords(camel_case($this->argument('name'))) . 'CrudService';
@@ -44,7 +38,17 @@ class CrudApiCommand extends Command
 
 		$this->runGenerator();
 	}
-
+	/**
+	 * Register bindings in the container.
+	 *
+	 * @return void
+	 */
+	public function register()
+	{
+		$this->mergeConfigFrom(
+			__DIR__.'/config/vuexcrud.php', 'vuexcrud'
+		);
+	}
 	/**
 	 * Execute the console command.
 	 *
@@ -52,16 +56,16 @@ class CrudApiCommand extends Command
 	 */
 	public function runGenerator()
 	{
-		$folder_component		= 'controller_folder';
-		$namespace_component	= 'controller_namespace';
-		$stub_name				= 'crudapi';
+		$folder_component		= 'crudservice_folder';
+		$namespace_component	= 'crudservice_namespace';
+		$stub_name				= 'crudservice';
 
 		if ($this->files->exists($path = $this->getPath($folder_component , $this->crud_section))) {
 			return $this->error($path . ' already exists!');
 		}
 		$this->makeDirectory($path);
 		$this->files->put($path, $this->compileStub($stub_name , $namespace_component , $this->crud_section));
-		$this->info('Api handler created successfully.');
+		$this->info('Crud service created successfully.');
 		$this->composer->dumpAutoloads();
 	}
 
@@ -73,19 +77,7 @@ class CrudApiCommand extends Command
 	 */
 	protected function replaceExtra(&$stub , $component , $section)
 	{
-		$section_data = app()['config']["vuexcrud.sections." . $section];
-		$namespace = trim($section_data[$component]);
-		$base_controller_namespace = $this->getAppNamespace() . 'Http\\Controllers';
-
-		if($namespace == $base_controller_namespace)
-		{
-			$stub = str_replace('{{name_space_controller}}', '', $stub);
-		}
-		else
-		{
-			$stub = str_replace('{{name_space_controller}}', "\n" . $base_controller_namespace . '\\Controller;', $stub);
-		}
-
+		$stub = str_replace('{{crudname}}', $this->my_class_name, $stub);
 		return $this;
 	}
 }

@@ -1,0 +1,20 @@
+const {{routes_name}} = [
+	{
+		path: '/{{base_path}}',
+		component: Vue.component( 'Main', require( './layouts/Main.vue' ) ),
+		children: [
+			{
+				path: 'growcycles',
+				component: Vue.component( 'GrowCycles', require( './controllers/GrowCycles.vue' ) )
+			},
+			{
+				path: '',
+				component: Vue.component( 'Dashboard', require( './controllers/Dashboard.vue' ) )
+			},
+		]
+	}
+];
+
+export default {
+	{{routes_name}}
+}

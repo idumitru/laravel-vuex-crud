@@ -1,0 +1,93 @@
+
+/**
+ * First we will load all of this project's JavaScript dependencies which
+ * includes Vue and other libraries. It is a great starting point when
+ * building robust, powerful web applications using Vue and Laravel.
+ */
+
+require('./bootstrap');
+
+import Vue from 'vue';
+import Vuex from 'vuex';
+import VueRouter from 'vue-router';
+import BootstrapVue from 'bootstrap-vue';
+import AppRouter from './{{app_router}}.vue';
+
+Vue.use(Vuex);
+Vue.use(VueRouter);
+Vue.use(BootstrapVue);
+
+import store from './store'
+
+const EventBus = new Vue();
+Object.defineProperties(Vue.prototype, {
+	$bus: {
+		get: function () {
+			return EventBus
+		}
+	}
+});
+
+const requireComponent = require.context(
+	// The relative path of the components folder
+	'../vue_common',
+	// Whether or not to look in subfolders
+	false,
+	// The regular expression used to match base component filenames
+	/[A-Z]\w+\.(vue|js)$/
+);
+
+requireComponent.keys().forEach(fileName => {
+	// Get component config
+	const componentConfig = requireComponent(fileName);
+
+	// Get PascalCase name of component
+	// const componentName = upperFirst(
+	// 	camelCase(
+	// 		// Strip the leading `'./` and extension from the filename
+	// 		fileName.replace(/^\.\/(.*)\.\w+$/, '$1')
+	// 	)
+	// );
+	const componentName = fileName.replace(/^\.\/(.*)\.\w+$/, '$1');
+
+	// Register component globally
+	Vue.component(
+		componentName,
+		// Look for the component options on `.default`, which will
+		// exist if the component was exported with `export default`,
+		// otherwise fall back to module's root.
+		componentConfig.default || componentConfig
+	)
+});
+
+axios.interceptors.response.use((response) => {
+	return response;
+}, function (error) {
+	// Do something with response error
+	// if (error.response.status === 403) {
+	// 	console.log('unauthorized, logging out ...');
+	// 	auth.logout();
+	// 	router.replace('/auth/login');
+	// }
+	return Promise.reject(error.response);
+});
+
+/**
+ * Next, we will create a fresh Vue application instance and attach it to
+ * the page. Then, you may begin adding components to this application
+ * or customize the JavaScript scaffolding to fit your unique needs.
+ */
+
+const router = new VueRouter({
+	{{routes_name}},
+    base: '/',
+	mode: 'history',
+});
+
+const app = new Vue({
+    el: '#app',
+	router,
+	store,
+	components: { AppRouter },
+	template: "<AppRouter/>"
+});

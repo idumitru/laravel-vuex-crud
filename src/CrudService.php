@@ -10,12 +10,26 @@ use Illuminate\Support\Facades\Input;
 
 class CrudService
 {
-	protected static $accepted_methods = [
+	public static $service_name = 'default';
+
+	protected static $default_methods = [
 		'Create',
 		'Fetch',
 		'Delete',
 		'Edit'
 	];
+
+	protected static $extra_methods = [];
+
+	public static function GetDefaultMethods()
+	{
+		return self::$default_methods;
+	}
+
+	public static function GetExtraMethods()
+	{
+		return self::$extra_methods;
+	}
 
 	public static function HandleRequest($service, $method, $data)
 	{
