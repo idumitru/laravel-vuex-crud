@@ -21,14 +21,6 @@ class CrudVueAppCommand extends Command
 
 	protected $my_folder_name = 'example';
 
-	protected $folders = [
-		'components' => 'components',
-		'controllers' => 'controllers',
-		'layouts' => 'layouts',
-		'store' => 'store',
-		'vue_common' => 'vue_common'
-	];
-
 	/**
 	 * The console command description.
 	 *
@@ -128,6 +120,7 @@ class CrudVueAppCommand extends Command
 
 		$stub = str_replace('{{routes_name}}', $this->my_folder_name . "routes", $stub);
 		$stub = str_replace('{{app_router}}', $this->my_folder_name . "router", $stub);
+		$stub = str_replace('{{api_route}}', ucwords(camel_case($this->my_folder_name)) . 'Api', $stub);
 
 		return $stub;
 	}

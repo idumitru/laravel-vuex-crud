@@ -89,5 +89,8 @@ const app = new Vue({
 	router,
 	store,
 	components: { AppRouter },
-	template: "<AppRouter/>"
+	template: "<AppRouter/>",
+	data: {
+		'api_route': '/{{api_route}}'
+	},
 });

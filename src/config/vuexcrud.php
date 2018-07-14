@@ -31,7 +31,7 @@ return [
 				'layouts' => 'layouts',
 				'pages' => 'pages',
 				'store' => 'store',
-			]
+			],
 		],
 
 		/*

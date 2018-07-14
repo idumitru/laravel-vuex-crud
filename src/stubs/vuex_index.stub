@@ -3,6 +3,7 @@ import Vuex from 'vuex'
 
 import crud from './helpers/crud'
 import apicomm from './modules/apicomm'
+/* -- vuexcrud inject imports -- do not modify this comment */
 
 Vue.use(Vuex);
 
@@ -10,7 +11,8 @@ const debug = process.env.NODE_ENV !== 'production';
 
 export default new Vuex.Store({
 	modules: {
-		apicomm
+		apicomm,
+	    /* -- vuexcrud inject module -- do not modify this comment */
 	},
 	strict: debug,
 	plugins: debug ? [] : [],

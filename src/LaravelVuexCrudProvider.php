@@ -63,6 +63,11 @@ class LaravelVuexCrudProvider extends ServiceProvider
 			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudVuePageCommand'];
 		});
 		$this->commands('command.softdreams.vuexcrud.vuepage');
+
+		$this->app->singleton('command.softdreams.vuexcrud.vuexmodule', function ($app) {
+			return $app['SoftDreams\LaravelVuexCrud\Generators\CrudVuexModuleCommand'];
+		});
+		$this->commands('command.softdreams.vuexcrud.vuexmodule');
 	}
 
 	private function registerVuexModuleGenerator()

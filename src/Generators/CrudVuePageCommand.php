@@ -23,20 +23,12 @@ class CrudVuePageCommand extends Command
 	protected $my_layout_name = 'example';
 	protected $my_page_name = 'example';
 
-	protected $folders = [
-		'components' => 'components',
-		'controllers' => 'controllers',
-		'layouts' => 'layouts',
-		'store' => 'store',
-		'vue_common' => 'vue_common'
-	];
-
 	/**
 	 * The console command description.
 	 *
 	 * @var string
 	 */
-	protected $description = 'Create a new vue layout';
+	protected $description = 'Create a new vue page';
 
 	public function handle()
 	{

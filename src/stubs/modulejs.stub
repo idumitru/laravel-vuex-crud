@@ -1,0 +1,25 @@
+import crud from '../helpers/crud'
+
+let crud_variables = [
+	{name: '{{var_name}}', service: '{{service_name}}', tag: '{{var_name}}'}
+];
+
+const namespaced = true;
+
+const local_state = {};
+const local_getters = {};
+const local_actions = {};
+const local_mutations = {};
+
+const state = Object.assign({}, crud.getState(crud_variables), local_state);
+const getters = Object.assign({}, crud.getGetters(crud_variables), local_getters);
+const actions = Object.assign({}, crud.getActions(crud_variables), local_actions);
+const mutations = Object.assign({}, crud.getMutations(crud_variables), local_mutations);
+
+export default {
+	namespaced,
+	state,
+	getters,
+	actions,
+	mutations
+}

@@ -61,3 +61,6 @@ Layout Main already exits!
 
 $ php artisan vuexcrud:vue:make:page admin main companies
 Layout Main already exits!
+
+$ php artisan vuexcrud:vuex:make:module cici companies
+Module companies for app cici created successfully in D:\Work\Websites\dev1.vuexcrud.eiddew.com\vuexcrud/resources/assets/js/vuexcrud/cici/store/modules/companies.js

@@ -22,14 +22,6 @@ class CrudVueLayoutCommand extends Command
 	protected $my_folder_name = 'example';
 	protected $my_layout_name = 'example';
 
-	protected $folders = [
-		'components' => 'components',
-		'controllers' => 'controllers',
-		'layouts' => 'layouts',
-		'store' => 'store',
-		'vue_common' => 'vue_common'
-	];
-
 	/**
 	 * The console command description.
 	 *
