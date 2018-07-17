@@ -1,7 +1,7 @@
 import crud from '../helpers/crud'
 
 let crud_variables = [
-	{name: '{{var_name}}', service: '{{service_name}}', tag: '{{var_name}}'}
+	{name: '{{var_name}}', api_route: '/{{api_route}}', service: '{{service_name}}', tag: '{{var_name}}'}
 ];
 
 const namespaced = true;

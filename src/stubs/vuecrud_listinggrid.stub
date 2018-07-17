@@ -1,0 +1,1354 @@
+<style>
+    .arrow {
+        display: inline-block;
+        vertical-align: middle;
+        width: 0;
+        height: 0;
+        margin-left: 5px;
+        opacity: 0.66;
+    }
+    .arrow.dsc {
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 4px solid #fff;
+    }
+    th.active .arrow {
+        opacity: 1;
+    }
+    thead th.active {
+        color: #fff;
+    }
+
+    thead th {
+        color: rgba(255, 255, 255, 0.66);
+        cursor: pointer;
+        min-width: 120px;
+    }
+    table {
+        width: 100%;
+    }
+</style>
+
+<template>
+    <div class="loading-coverable">
+        <form id="search" class="mb-2">
+            Search <input name="query" v-model="filterKey">
+        </form>
+        <template v-if="data_source.length === 0 || has_data_feed_error">
+            <template v-if="has_data_feed_error">
+                {{data_feed_error_message}}
+            </template>
+            <template v-else>
+                No data available
+            </template>
+        </template>
+        <template v-else>
+            <table>
+                <thead>
+                <tr>
+                    <th v-for="key in view_columns"
+                        @click="sortBy(key.data_column)"
+                        :class="{ active: sortKey === key.data_column }" class="bg-success pt-4 pb-4 pl-4 border border-light">
+                        {{ key.grid_column | capitalize }}
+                        <span class="arrow" :class="sortOrders[key] > 0 ? 'asc' : 'dsc'"></span>
+
+                    </th>
+                    <th v-if="has_actions" class="bg-success pt-4 pb-4 pl-4 pr-4">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <template v-for="filteredGroup in filteredNestedData">
+                    <template v-for="(entry,entry_index) in filteredGroup.rows">
+                        <tr>
+                            <td v-for="key in view_columns" class="pl-4">
+                                <template
+                                        v-if="editing_rows.indexOf(entry.id) === -1 || !key.editable || !key.is_primary">
+                                    <template v-if="!entry[key.data_column].inherit">
+                                        <template v-if="key.type === 'dropdown'">
+                                            <template v-if="key.data_source">
+                                                <template v-if="key.data_source.type === 'provided'">
+                                                    <template v-for="data_option in key.data_source.options">
+                                                        <template
+                                                                v-if="data_option.data_value === entry[key.data_column].field_value">
+                                                            {{data_option.label}}
+                                                        </template>
+                                                    </template>
+                                                </template>
+                                            </template>
+                                        </template>
+                                        <template v-else>
+                                            {{entry[key.data_column].field_value}}
+                                        </template>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    <template v-if="key.type === 'editbox'">
+                                        <input
+                                                type="text"
+                                                class="form-control"
+                                                v-model="editing_data[entry.id][key.data_column]"
+                                        >
+                                    </template>
+                                    <template v-if="key.type === 'dropdown'">
+                                        <template v-if="key.data_source">
+                                            <template v-if="key.data_source.type === 'provided'">
+                                                <select
+                                                        class="form-control"
+                                                        v-model="editing_data[entry.id][key.data_column]"
+                                                >
+                                                    <option v-for="data_option in key.data_source.options"
+                                                            :value="data_option.data_value">{{data_option.label}}
+                                                    </option>
+                                                </select>
+                                            </template>
+                                        </template>
+                                    </template>
+                                </template>
+                            </td>
+                            <td v-if="has_actions" class="pl-4">
+                                <template v-if="entry_index === 0">
+                                    <template v-if="settings.can_edit">
+                                        <template v-if="editing_rows.indexOf(entry.id) === -1">
+                                            <button
+                                                    @click="editItem(entry.id)"
+                                                    type="button"
+                                                    class="btn btn-primary mb-2 mt-2"
+                                            >
+                                                Edit
+                                            </button>
+                                        </template>
+                                        <template v-else>
+                                            <button
+                                                    @click="cancelEdit(entry.id)"
+                                                    type="button"
+                                                    class="btn btn-warning"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                    @click="saveEdit(entry.id)"
+                                                    type="button"
+                                                    class="btn btn-success"
+                                            >
+                                                Save
+                                            </button>
+                                        </template>
+                                    </template>
+                                    <button
+                                            v-if="settings.can_delete"
+                                            @click="deleteItem(entry[primary_key_name].field_value)"
+                                            type="button"
+                                            class="btn btn-danger"
+                                    >
+                                        Delete
+                                    </button>
+                                    <template v-if="settings.custom_actions && settings.custom_actions.length > 0">
+                                        <template v-for="(custom_action,custom_action_index) in settings.custom_actions">
+                                            <template v-if="custom_action.action_type === 'button'">
+                                                <button
+                                                        @click="customAction(entry[primary_key_name].field_value , custom_action_index)"
+                                                        type="button"
+                                                        :class="custom_action.button_class?custom_action.button_class:'btn btn-info'"
+                                                >
+                                                    {{custom_action.button_text}}
+                                                </button>
+                                            </template>
+                                        </template>
+                                    </template>
+                                </template>
+                            </td>
+                        </tr>
+                    </template>
+                </template>
+                </tbody>
+            </table>
+        </template>
+
+        <LoadingAnim v-if="is_loading"></LoadingAnim>
+    </div>
+</template>
+
+<script>
+	export default {
+		mounted()
+		{
+			this.load_data();
+		},
+
+		props: {
+			source_columns: Array,
+			settings: Object,
+			grid_name: String,
+		},
+
+		data: function () {
+			return {
+				filterKey: '',
+				sortKey: '',
+                primary_key_name: '',
+				sortOrders: {},
+				is_loading: false,
+				data_loaded: false,
+				editing_rows: [],
+				editing_data: {},
+				loading_data_sources: [],
+				has_data_feed_error: false,
+				data_feed_error_message: '',
+				debug_message: []
+			}
+		},
+		computed: {
+			has_actions: function () {
+				return this.settings.can_edit || this.settings.can_delete || (this.settings.custom_actions && this.settings.custom_actions.length > 0);
+			},
+
+			view_columns: function () {
+				let my_columns = [];
+
+				for (let i = 0; i < this.source_columns.length; i++)
+				{
+					for (let j = 0; j < this.source_columns[i].columns.length; j++)
+					{
+						let new_column_data = {
+							tag: this.source_columns[i].tag,
+							is_primary: this.source_columns[i].is_primary?this.source_columns[i].is_primary:false,
+							grid_column: this.source_columns[i].columns[j].grid_column,
+							data_column: this.source_columns[i].tag + '/' + this.source_columns[i].columns[j].data_column,
+							editable: this.source_columns[i].columns[j].editable,
+							nullable: ('nullable' in this.source_columns[i].columns[j])?this.source_columns[i].columns[j].nullable:true,
+							type: this.source_columns[i].columns[j].type,
+							data_source: this.source_columns[i].columns[j].data_source ? this.source_columns[i].columns[j].data_source : null
+						};
+
+						my_columns.push(new_column_data);
+					}
+				}
+
+				return my_columns;
+			},
+
+			data_source: function () {
+				let my_data = [];
+
+				//flattened_source
+				let use_flattened_source = 1;
+				if (use_flattened_source === 1)
+				{
+					for (let i = 0; i < this.flattened_source.length; i++)
+					{
+						for (let j = 0; j < this.flattened_source[i].rows.length; j++)
+						{
+							let data_row = {};
+
+							for (let k = 0; k < this.flattened_source[i].rows[j].length; k++)
+							{
+								if (this.flattened_source[i].rows[j][k].inherit === true)
+								{
+									data_row[this.flattened_source[i].rows[j][k].field_name] = '';
+								}
+								else
+								{
+									data_row[this.flattened_source[i].rows[j][k].field_name] = this.flattened_source[i].rows[j][k].field_value;
+								}
+							}
+
+							my_data.push(data_row);
+						}
+					}
+
+					return my_data;
+				}
+				//end flattened source
+
+				let my_nested_data = [];
+				let primary_index = -1;
+				let primary_data_source = [];
+				this.has_data_feed_error = false;
+
+
+				for (let i = 0; i < this.source_columns.length; i++)
+				{
+					if (this.source_columns[i].is_primary && this.source_columns[i].is_primary === true)
+					{
+						primary_index = i;
+						//primary_data_source = this.source_columns[i].data_feed;
+						primary_data_source = this.$store.getters[this.source_columns[i].data_getter];
+						//primary_data_source = this.source_columns[i].data_vuex;
+					}
+				}
+
+				if (primary_index === -1)
+				{
+					return my_data;
+				}
+
+				//this.debug_message.push('here1');
+				//this.debug_message.push('getter length: ' + this.$store.state.users.user_list.length);
+				//this.debug_message.push('getter length: ' + this.$store.getters['users/getAllUsers'].length);
+				//this.debug_message.push('getter length: ' + primary_data_source.length);
+				//this.debug_message.push('primary data source length: ' + primary_data_source.length);
+				//this.debug_message.push('primary data source length: ' + this.source_columns[primary_index].data_feed.length);
+				//fill primary rows
+				for (let i = 0; i < primary_data_source.length; i++)
+				{
+					let data_row = {};
+					let nested_data_row = [];
+					let source_rows = [];
+
+					let nested_data_row_object = {
+						tag: this.source_columns[primary_index].tag,
+						rows: [
+							{
+								row_matches_source: 0,
+								row_matches_field: 0,
+								row_matches_index: 0,
+								source_row: JSON.parse(JSON.stringify(primary_data_source[i]))
+							}
+						]
+					};
+
+					nested_data_row.push(nested_data_row_object);
+
+					source_rows.push({
+						tag: this.source_columns[primary_index].tag,
+						row_data: JSON.parse(JSON.stringify(primary_data_source[i]))
+					});
+
+					for (let j = 0; j < this.source_columns[primary_index].columns.length; j++)
+					{
+						data_row[this.source_columns[primary_index].columns[j].data_column] = primary_data_source[i][this.source_columns[primary_index].columns[j].data_column];
+					}
+
+					if (!('id' in data_row))
+					{
+						data_row.id = primary_data_source[i].id;
+					}
+
+					//fill secondary sources
+					for (let k = 0; k < this.source_columns.length; k++)
+					{
+						if (k === primary_index)
+						{
+							continue;
+						}
+
+						//let current_source = this.source_columns[k].data_feed;
+						let current_source = this.$store.getters[this.source_columns[k].data_getter];
+						//let current_source = this.source_columns[k].data_vuex;
+
+						if (!('joins' in this.source_columns[k]))
+						{
+							this.has_data_feed_error = true;
+							this.data_feed_error_message = "Missing 'joins' field in secondary data source " + this.source_columns[k].tag;
+							return my_data;
+						}
+
+						let found_row = 0;
+						let has_multiple_rows = 0;
+						//for each secondary source rows
+						for (let m = 0; m < current_source.length; m++)
+						{
+							let nested_data_row_object = {
+								tag: this.source_columns[k].tag,
+								rows: []
+							};
+
+							let skip_row = 0;
+							//for each secondary source joins data
+							for (let n = 0; n < this.source_columns[k].joins.length; n++)
+							{
+								//for each stored prvious sources rows
+								for (let p = 0; p < source_rows.length; p++)
+								{
+									//match previous source row to be from desired source (tag)
+									if (source_rows[p].tag === this.source_columns[k].joins[n].source)
+									{
+										if (Array.isArray(source_rows[p].row_data[this.source_columns[k].joins[n].source_field]))
+										{
+											has_multiple_rows = 1;
+											let found_match = 0;
+
+											for (let r = 0; r < source_rows[p].row_data[this.source_columns[k].joins[n].source_field].length; r++)
+											{
+												if (
+													source_rows[p].row_data[this.source_columns[k].joins[n].source_field][r] ===
+													current_source[m][this.source_columns[k].joins[n].my_field]
+												)
+												{
+													nested_data_row_object.rows.push(
+														{
+															row_matches_source: this.source_columns[k].joins[n].source,
+															row_matches_index: 0,
+															row_matches_field: source_rows[p].row_data[this.source_columns[k].joins[n].source_field],
+															source_row: JSON.parse(JSON.stringify(current_source[m]))
+														}
+													);
+													found_match = 1;
+												}
+											}
+											if (found_match === 0)
+											{
+												skip_row = 1;
+												break;
+											}
+										}
+										else
+										{
+											if (
+												source_rows[p].row_data[this.source_columns[k].joins[n].source_field] !==
+												current_source[m][this.source_columns[k].joins[n].my_field]
+											)
+											{
+												skip_row = 1;
+											}
+											break;
+										}
+									}
+								}
+								if (skip_row === 1)
+								{
+									break;
+								}
+							}
+							if (skip_row === 1)
+							{
+								continue;
+							}
+
+							nested_data_row.push(nested_data_row_object);
+
+							found_row = 1;
+							source_rows.push({
+								tag: this.source_columns[k].tag,
+								row_data: Object.assign({}, current_source[m])
+							});
+
+							for (let j = 0; j < this.source_columns[k].columns.length; j++)
+							{
+								data_row[this.source_columns[k].columns[j].data_column] = current_source[m][this.source_columns[k].columns[j].data_column];
+							}
+							break;
+						}
+					}
+
+					my_data.push(data_row);
+				}
+
+				return my_data;
+			},
+
+			nested_data_source: function () {
+				let my_nested_data = [];
+
+				if (!this.data_loaded)
+				{
+					return my_nested_data;
+				}
+
+				let primary_index = -1;
+				let primary_data_source = [];
+
+				for (let i = 0; i < this.source_columns.length; i++)
+				{
+					if (this.source_columns[i].is_primary && this.source_columns[i].is_primary === true)
+					{
+						primary_index = i;
+						primary_data_source = this.$store.getters[this.source_columns[i].data_getter];
+					}
+				}
+
+				if (primary_index === -1)
+				{
+					return my_nested_data;
+				}
+
+				for (let i = 0; i < primary_data_source.length; i++)
+				{
+					if (('filters' in this.source_columns[primary_index]))
+					{
+						let filter_pass = 1;
+
+						for (let n = 0; n < this.source_columns[primary_index].filters.length; n++)
+						{
+							let filter_rule = this.source_columns[primary_index].filters[n];
+
+							if (!(filter_rule.my_field in primary_data_source[i]))
+							{
+								filter_pass = 0;
+								break;
+							}
+
+							if (filter_rule.search_type.type === 'exact')
+							{
+								if (filter_rule.search_type.compare_op === 'eq')
+								{
+									if (!(primary_data_source[i][filter_rule.my_field] === filter_rule.value))
+									{
+										filter_pass = 0;
+										break;
+									}
+								}
+							}
+							else if (filter_rule.search_type.type === 'string')
+							{
+								if (filter_rule.search_type.compare_op === 'eq')
+								{
+									if (!('case_sensitive' in filter_rule.search_type) || filter_rule.search_type.case_sensitive === false)
+									{
+										if (!(String(primary_data_source[i][filter_rule.my_field]).toLowerCase() === String(filter_rule.value).toLowerCase()))
+										{
+											filter_pass = 0;
+											break;
+										}
+									}
+									else //  filter_rule.search_type.case_sensitive === true
+									{
+										if (!(String(primary_data_source[i][filter_rule.my_field]) === String(filter_rule.value)))
+										{
+											filter_pass = 0;
+											break;
+										}
+									}
+								}
+								else if (filter_rule.search_type.compare_op === 'contains')
+								{
+									if (!('case_sensitive' in filter_rule.search_type) || filter_rule.search_type.case_sensitive === false)
+									{
+										if (!(String(primary_data_source[i][filter_rule.my_field]).toLowerCase().indexOf(String(filter_rule.value).toLowerCase()) > -1))
+										{
+											filter_pass = 0;
+											break;
+										}
+									}
+									else //  filter_rule.search_type.case_sensitive === true
+									{
+										if (!(String(primary_data_source[i][filter_rule.my_field]).indexOf(String(filter_rule.value)) > -1))
+										{
+											filter_pass = 0;
+											break;
+										}
+									}
+								}
+							}
+						}
+
+						if (filter_pass === 0)
+						{
+							continue;
+						}
+					}
+
+					let nested_data_row = [];
+
+					let nested_data_row_object = {
+						tag: this.source_columns[primary_index].tag,
+						columns: Object.keys(primary_data_source[i]),
+						rows: [
+							{
+								matches: 0,
+								source_row: JSON.parse(JSON.stringify(primary_data_source[i]))
+							}
+						]
+					};
+
+					nested_data_row.push(nested_data_row_object);
+
+					//fill secondary sources
+					for (let k = 0; k < this.source_columns.length; k++)
+					{
+						if (k === primary_index)
+						{
+							continue;
+						}
+
+						let current_source = this.$store.getters[this.source_columns[k].data_getter];
+
+						let secondary_nested_data_row_object = {
+							tag: this.source_columns[k].tag,
+							columns: [],
+							rows: []
+						};
+
+						if (current_source.length > 0)
+						{
+							let current_source_columns = Object.keys(current_source[0]);
+							secondary_nested_data_row_object.columns = current_source_columns.slice();
+						}
+
+						//for each secondary source rows
+						let matched_row_index = 0;
+						for (let m = 0; m < current_source.length; m++)
+						{
+							if (('filters' in this.source_columns[k]))
+							{
+								let filter_pass = 1;
+
+								for (let n = 0; n < this.source_columns[k].filters.length; n++)
+								{
+									let filter_rule = this.source_columns[k].filters[n];
+
+									if (!(filter_rule.my_field in current_source[m]))
+									{
+										filter_pass = 0;
+										break;
+									}
+
+									if (filter_rule.search_type.type === 'exact')
+									{
+										if (filter_rule.search_type.compare_op === 'eq')
+										{
+											if (!(current_source[m][filter_rule.my_field] === filter_rule.value))
+											{
+												filter_pass = 0;
+												break;
+											}
+										}
+									}
+									else if (filter_rule.search_type.type === 'string')
+									{
+										if (filter_rule.search_type.compare_op === 'eq')
+										{
+											if (!('case_sensitive' in filter_rule.search_type) || filter_rule.search_type.case_sensitive === false)
+											{
+												if (!(String(current_source[m][filter_rule.my_field]).toLowerCase() === String(filter_rule.value).toLowerCase()))
+												{
+													filter_pass = 0;
+													break;
+												}
+											}
+											else //  filter_rule.search_type.case_sensitive === true
+											{
+												if (!(String(current_source[m][filter_rule.my_field]) === String(filter_rule.value)))
+												{
+													filter_pass = 0;
+													break;
+												}
+											}
+										}
+										else if (filter_rule.search_type.compare_op === 'contains')
+										{
+											if (!('case_sensitive' in filter_rule.search_type) || filter_rule.search_type.case_sensitive === false)
+											{
+												if (!(String(current_source[m][filter_rule.my_field]).toLowerCase().indexOf(String(filter_rule.value).toLowerCase()) > -1))
+												{
+													filter_pass = 0;
+													break;
+												}
+											}
+											else //  filter_rule.search_type.case_sensitive === true
+											{
+												if (!(String(current_source[m][filter_rule.my_field]).indexOf(String(filter_rule.value)) > -1))
+												{
+													filter_pass = 0;
+													break;
+												}
+											}
+										}
+									}
+								}
+
+								if (filter_pass === 0)
+								{
+									continue;
+								}
+							}
+
+							let skip_row = 0;
+							//for each secondary source joins data
+							for (let n = 0; n < this.source_columns[k].joins.length; n++)
+							{
+								let join_rule = this.source_columns[k].joins[n];
+								//for each stored prvious sources rows
+								for (let p = 0; p < nested_data_row.length; p++)
+								{
+									//match previous source row to be from desired source (tag)
+									if (nested_data_row[p].tag === join_rule.source)
+									{
+										for (let r = 0; r < nested_data_row[p].rows.length; r++)
+										{
+											let source_field_data = nested_data_row[p].rows[r].source_row[join_rule.source_field];
+
+											if (
+												source_field_data !==
+												current_source[m][join_rule.my_field]
+											)
+											{
+												skip_row = 1;
+											}
+											else
+											{
+												skip_row = 0;
+												matched_row_index = r;
+												break;
+											}
+										}
+										break;
+									}
+								}
+								if (skip_row === 1)
+								{
+									break;
+								}
+							}
+							if (skip_row === 1)
+							{
+								continue;
+							}
+
+							let matches = [];
+							for (let n = 0; n < this.source_columns[k].joins.length; n++)
+							{
+								let join_rule = this.source_columns[k].joins[n];
+								matches.push(
+									{
+										source: join_rule.source,
+										source_field: join_rule.source_field,
+										my_field: join_rule.my_field,
+										row_index: matched_row_index
+									}
+								);
+							}
+
+							secondary_nested_data_row_object.rows.push(
+								{
+									matches: matches,
+									source_row: JSON.parse(JSON.stringify(current_source[m]))
+								}
+							);
+						}
+
+						nested_data_row.push(secondary_nested_data_row_object);
+					}
+
+					my_nested_data.push(nested_data_row);
+				}
+
+				return my_nested_data;
+			},
+
+			flattened_source: function () {
+
+				//build rows vector
+
+				let rows_vector = [];
+
+				if (!this.data_loaded)
+				{
+					return rows_vector;
+				}
+
+				for (let i = 0; i < this.nested_data_source.length; i++)
+				{
+					let row_data = this.nested_data_source[i];
+					let base_row = [];
+					for (let field_name in row_data[0].rows[0].source_row)
+					{
+						base_row.push(
+							{
+								inherit: false,
+								field_name: field_name,
+								field_value: row_data[0].rows[0].source_row[field_name],
+								is_null: false,
+								tag: row_data[0].tag,
+								row_index: 0,
+							}
+						);
+
+					}
+
+					rows_vector.push({
+						index: i,
+						rows: []
+					});
+
+					rows_vector[i].rows.push(base_row);
+
+
+					for (let j = 1; j < row_data.length; j++)
+					{
+						let insert_rows = [];
+
+						for (let s = 0; s < rows_vector[i].rows.length; s++)
+						{
+							let row_filled = 0; //if multiple rows match, extend rows_vector[i].rows[s] with a new copy of it
+							for (let k = 0; k < row_data[j].rows.length; k++)
+							{
+								let joins_satisfied = 1;
+								for (let m = 0; m < row_data[j].rows[k].matches.length; m++)
+								{
+									let has_match = 0;
+									for (let n = 0; n < rows_vector[i].rows[s].length; n++)
+									{
+										if (
+											row_data[j].rows[k].matches[m].source === rows_vector[i].rows[s][n].tag &&
+											row_data[j].rows[k].matches[m].row_index === rows_vector[i].rows[s][n].row_index
+										)
+										{
+											has_match = 1;
+											break;
+										}
+									}
+
+									if (has_match === 0)
+									{
+										joins_satisfied = 0;
+										break;
+									}
+								}
+
+								if (joins_satisfied === 1)
+								{
+									if (row_filled === 0)
+									{
+										row_filled = 1;
+										for (let field_name in row_data[j].rows[k].source_row)
+										{
+											rows_vector[i].rows[s].push(
+												{
+													inherit: false,
+													field_name: field_name,
+													field_value: row_data[j].rows[k].source_row[field_name],
+													is_null: false,
+													tag: row_data[j].tag,
+													row_index: k,
+												}
+											);
+										}
+									}
+									else //multiple matches add a new row
+									{
+										let new_fields = [];
+										for (let field_name in row_data[j].rows[k].source_row)
+										{
+											new_fields.push(
+												{
+													field_name: field_name,
+													field_value: row_data[j].rows[k].source_row[field_name],
+													is_null: false,
+													tag: row_data[j].tag,
+													row_index: k,
+												}
+											);
+										}
+										insert_rows.push({
+											after_index: s,
+											new_fields: new_fields
+										});
+									}
+								}
+							}
+
+							if (row_filled === 0)
+							{
+								for (let k = 0; k < row_data[j].columns.length; k++)
+								{
+									rows_vector[i].rows[s].push(
+										{
+											inherit: false,
+											field_name: row_data[j].columns[k],
+											field_value: '',
+											is_null: true,
+											tag: row_data[j].tag,
+											row_index: -1,
+										}
+									);
+								}
+							}
+						}
+
+						if (insert_rows.length > 0)
+						{
+							for (let k = insert_rows.length - 1; k >= 0; k--)
+							{
+								let new_row = [];
+
+								for (let m = 0; m < rows_vector[i].rows[insert_rows[k].after_index].length; m++)
+								{
+									new_row.push({
+										inherit: true,
+										field_name: rows_vector[i].rows[insert_rows[k].after_index][m].field_name,
+										field_value: rows_vector[i].rows[insert_rows[k].after_index][m].field_value,
+										is_null: rows_vector[i].rows[insert_rows[k].after_index][m].is_null,
+										tag: rows_vector[i].rows[insert_rows[k].after_index][m].tag,
+										row_index: rows_vector[i].rows[insert_rows[k].after_index][m].row_index,
+									});
+								}
+
+								for (let m = 0; m < new_row.length; m++)
+								{
+									for (let n = 0; n < insert_rows[k].new_fields.length; n++)
+									{
+										if (
+											new_row[m].tag === insert_rows[k].new_fields[n].tag &&
+											new_row[m].field_name === insert_rows[k].new_fields[n].field_name
+										)
+										{
+											new_row[m].inherit = false;
+											new_row[m].field_value = insert_rows[k].new_fields[n].field_value;
+											new_row[m].is_null = insert_rows[k].new_fields[n].is_null;
+											new_row[m].row_index = insert_rows[k].new_fields[n].row_index;
+										}
+									}
+								}
+
+								if (rows_vector[i].rows.length === insert_rows[k].after_index + 1)
+								{
+									rows_vector[i].rows.push(new_row)
+								}
+								else
+								{
+									rows_vector[i].rows.splice(insert_rows[k].after_index + 1, 0, new_row);
+								}
+							}
+						}
+					}
+				}
+
+				let named_rows_vector = [];
+				for (let i = 0; i < rows_vector.length; i++)
+				{
+					named_rows_vector.push({
+						index: i,
+						rows: []
+					});
+
+					for (let j = 0; j < rows_vector[i].rows.length; j++)
+					{
+						let new_row = {};
+						let skip_nullable = 0;
+
+						for (let k = 0; k < rows_vector[i].rows[j].length; k++)
+						{
+							for (let m = 0; m < this.view_columns.length; m++)
+							{
+								if(
+                                    ('nullable' in this.view_columns[m]) &&
+									this.view_columns[m].nullable === false &&
+									this.view_columns[m].tag === rows_vector[i].rows[j][k].tag &&
+									this.view_columns[m].data_column === rows_vector[i].rows[j][k].tag + '/' + rows_vector[i].rows[j][k].field_name &&
+									rows_vector[i].rows[j][k].is_null === true
+                                )
+                                {
+									skip_nullable = 1;
+									break;
+                                }
+							}
+
+							if(skip_nullable === 1)
+                            {
+                            	break;
+                            }
+
+							new_row[rows_vector[i].rows[j][k].tag + '/' + rows_vector[i].rows[j][k].field_name] = {
+								inherit: rows_vector[i].rows[j][k].inherit,
+								field_name: rows_vector[i].rows[j][k].field_name,
+								field_value: rows_vector[i].rows[j][k].field_value,
+								is_null: rows_vector[i].rows[j][k].is_null,
+								tag: rows_vector[i].rows[j][k].tag,
+								row_index: rows_vector[i].rows[j][k].row_index,
+							};
+						}
+
+						if(skip_nullable === 0)
+                        {
+							named_rows_vector[i].rows.push(new_row);
+                        }
+					}
+				}
+
+				return named_rows_vector;
+			},
+
+			filteredData: function () {
+				let sortKey = this.sortKey;
+				let filterKey = this.filterKey && this.filterKey.toLowerCase();
+				let order = this.sortOrders[sortKey] || 1;
+				let data = this.data_source;
+				if (filterKey)
+				{
+					data = data.filter(function (row) {
+						return Object.keys(row).some(function (key) {
+							return String(row[key]).toLowerCase().indexOf(filterKey) > -1
+						})
+					})
+				}
+				if (sortKey)
+				{
+					data = data.slice().sort(function (a, b) {
+						a = a[sortKey];
+						b = b[sortKey];
+						return (a === b ? 0 : a > b ? 1 : -1) * order
+					})
+				}
+				return data
+			},
+
+			filteredNestedData: function () {
+				let sortKey = this.sortKey;
+				let filterKey = this.filterKey && this.filterKey.toLowerCase();
+				let order = this.sortOrders[sortKey] || 1;
+				let data = this.flattened_source;
+				if (filterKey)
+				{
+					data = data.filter(function (row) {
+						for (let i = 0; i < row.rows.length; i++)
+						{
+							for (let field_name in row.rows[i])
+							{
+								if (
+									row.rows[i][field_name].inherit === false &&
+									row.rows[i][field_name].is_null === false &&
+									String(row.rows[i][field_name].field_value).toLowerCase().indexOf(filterKey) > -1
+								)
+								{
+									return 1;
+								}
+							}
+						}
+						return 0;
+					})
+				}
+				if (sortKey)
+				{
+					data = data.slice().sort(function (a, b) {
+						a = a.rows[0][sortKey];
+						b = b.rows[0][sortKey];
+						return (a === b ? 0 : a > b ? 1 : -1) * order
+					})
+				}
+				return data
+			}
+		},
+
+		filters: {
+			capitalize: function (str) {
+				return str.charAt(0).toUpperCase() + str.slice(1)
+			}
+		},
+
+		methods: {
+			sortBy: function (key) {
+				this.sortKey = key;
+				this.sortOrders[key] = this.sortOrders[key] * -1
+			},
+
+			load_data: function () {
+				let view_sortOrders = {};
+
+				this.view_columns.forEach(function (key) {
+					view_sortOrders[key.data_column] = 1
+				});
+
+				this.sortOrders = view_sortOrders;
+
+				if (this.settings.do_initial_load === true)
+				{
+					this.loading_data_sources = [];
+
+					for (let i = 0; i < this.source_columns.length; i++)
+					{
+						if (('fetch_action' in this.source_columns[i]))
+						{
+							let call_data = {
+								index_start: 0,
+								items_count: 0,
+								tag: this.source_columns[i].tag
+							};
+
+							this.is_loading = true;
+
+
+							this.loading_data_sources.push({
+								tag: this.source_columns[i].tag,
+								loading: 1
+							});
+
+							this.$store.dispatch(this.source_columns[i].fetch_action, call_data).then(
+								success_data => {
+									this.load_complete(call_data.tag);
+									this.check_load_complete();
+								},
+								error_data => {
+									this.$swal({
+										type: 'error',
+										title: 'Oops...',
+										text: error_data,
+									});
+
+									this.load_complete(call_data.tag);
+									this.check_load_complete();
+								}
+							);
+						}
+					}
+				}
+				else
+				{
+					this.data_loaded = true;
+				}
+			},
+
+			load_complete: function (tag) {
+				if (tag !== null)
+				{
+					for (let i = 0; i < this.loading_data_sources.length; i++)
+					{
+						if (this.loading_data_sources[i].tag === tag)
+						{
+							this.loading_data_sources[i].loading = 0;
+							break;
+						}
+					}
+				}
+			},
+
+			check_load_complete: function () {
+				let in_progress = 0;
+				for (let i = 0; i < this.loading_data_sources.length; i++)
+				{
+					if (this.loading_data_sources[i].loading === 1)
+					{
+						in_progress = 1;
+						break;
+					}
+				}
+
+				if (in_progress === 0)
+				{
+					this.data_loaded = true;
+					this.is_loading = false;
+
+					for (let i = 0; i < this.source_columns.length; i++)
+					{
+						if (this.source_columns[i].is_primary)
+						{
+                            this.primary_key_name = this.source_columns[i].tag + '/id';
+						}
+					}
+				}
+			},
+
+			editItem: function (itemId) {
+				if (this.editing_rows.indexOf(itemId) === -1)
+				{
+					let editing_object = {};
+					let item_index = -1;
+
+					for (let i = 0; i < this.data_source.length; i++)
+					{
+						if (this.data_source[i].id === itemId)
+						{
+							item_index = i;
+						}
+					}
+
+					if (item_index === -1)
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'Could not identify editable row in ' + this.name + ' data grid for id '.itemId,
+						});
+						return;
+					}
+
+					let found_editable_column = 0;
+					for (let i = 0; i < this.view_columns.length; i++)
+					{
+						if (this.view_columns[i].editable)
+						{
+							editing_object[this.view_columns[i].data_column] = this.data_source[item_index][this.view_columns[i].data_column];
+							found_editable_column = 1;
+						}
+					}
+
+					if (found_editable_column === 0)
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'No editable columns in ' + this.name + ' data grid for id '.itemId,
+						});
+						return;
+					}
+
+					this.editing_data[itemId] = editing_object;
+					this.editing_rows.push(itemId);
+				}
+			},
+
+			deleteItem: function (itemId) {
+				this.$swal({
+					title: "Delete item",
+					text: "Are you sure you sure you want to delete this item?",
+					type: "warning",
+					showCancelButton: true,
+					confirmButtonText: "Delete",
+					confirmButtonColor: "#7266BA",
+				}).then((result) => {
+					if (result.value)
+					{
+						this.is_loading = true;
+						//console.log('delete action: ' + this.settings.delete_action);
+						this.$store.dispatch(this.settings.delete_action, itemId).then(
+							success_data => {
+								this.is_loading = false;
+							},
+							error_data => {
+								this.$swal({
+									type: 'error',
+									title: 'Oops...',
+									text: error_data,
+								});
+
+								this.is_loading = false;
+							}
+						);
+					}
+					else
+					{
+					}
+				});
+			},
+
+			cancelEdit: function (itemId) {
+				let item_edit_index = this.editing_rows.indexOf(itemId);
+
+				if (item_edit_index !== -1)
+				{
+					this.editing_rows.splice(item_edit_index, 1);
+				}
+
+				if ((itemId in this.editing_data))
+				{
+					delete(this.editing_data[itemId]);
+					this.editing_data = JSON.parse(JSON.stringify(this.editing_data));
+				}
+			},
+
+			saveEdit: function (itemId) {
+
+				let item_edit_index = this.editing_rows.indexOf(itemId);
+				if (item_edit_index === -1)
+				{
+					this.$swal({
+						type: 'error',
+						title: 'Oops...',
+						text: 'Row is not being edited in ' + this.name + ' data grid for id '.itemId,
+					});
+					return;
+				}
+
+				if (!(itemId in this.editing_data))
+				{
+					this.$swal({
+						type: 'error',
+						title: 'Oops...',
+						text: 'Missing edit data for save in ' + this.name + ' data grid for id '.itemId,
+					});
+					return;
+				}
+
+				let item_index = -1;
+
+				for (let i = 0; i < this.data_source.length; i++)
+				{
+					if (this.data_source[i].id === itemId)
+					{
+						item_index = i;
+					}
+				}
+
+				if (item_index === -1)
+				{
+					this.$swal({
+						type: 'error',
+						title: 'Oops...',
+						text: 'Could not identify original row in ' + this.name + ' data grid for id '.itemId,
+					});
+					return;
+				}
+
+				let call_data = {
+					id: itemId,
+					columns: []
+				};
+
+				let has_edited_columns = 0;
+				for (let i = 0; i < this.view_columns.length; i++)
+				{
+					if (this.view_columns[i].editable && (this.view_columns[i].data_column in this.editing_data[itemId]))
+					{
+						if (this.editing_data[itemId][this.view_columns[i].data_column] !== this.data_source[item_index][this.view_columns[i].data_column])
+						{
+							call_data.columns.push({
+								column_name: this.view_columns[i].data_column,
+								column_value: this.editing_data[itemId][this.view_columns[i].data_column]
+							});
+							has_edited_columns = 1;
+						}
+					}
+				}
+
+				if (has_edited_columns === 1)
+				{
+					this.is_loading = true;
+					//console.log('edit action: ' + this.settings.edit_action);
+					this.$store.dispatch(this.settings.edit_action, call_data).then(
+						success_data => {
+							this.is_loading = false;
+							this.editing_rows.splice(item_edit_index, 1);
+							delete(this.editing_data[itemId]);
+							this.editing_data = JSON.parse(JSON.stringify(this.editing_data));
+						},
+						error_data => {
+							this.$swal({
+								type: 'error',
+								title: 'Oops...',
+								text: error_data,
+							});
+
+							this.is_loading = false;
+						}
+					);
+				}
+				else
+				{
+					this.editing_rows.splice(item_edit_index, 1);
+					delete(this.editing_data[itemId]);
+					this.editing_data = JSON.parse(JSON.stringify(this.editing_data));
+				}
+			},
+
+			customAction: function (itemId, action_index) {
+				//console.log('edit action: ' + this.settings.edit_action);
+                if(('action' in this.settings.custom_actions[action_index]))
+                {
+					this.is_loading = true;
+					this.$store.dispatch(this.settings.custom_actions[action_index].action, itemId).then(
+						success_data => {
+							this.is_loading = false;
+							if (this.settings.custom_actions[action_index].action_success)
+							{
+								this.settings.custom_actions[action_index].action_success(this, itemId, success_data);
+							}
+						},
+						error_data => {
+							this.$swal({
+								type: 'error',
+								title: 'Oops...',
+								text: error_data,
+							});
+
+							this.is_loading = false;
+						}
+					);
+                }
+                else if(('action_call' in this.settings.custom_actions[action_index]))
+                {
+					this.settings.custom_actions[action_index].action_call(itemId)
+                }
+			},
+		}
+	}
+</script>

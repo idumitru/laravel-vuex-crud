@@ -150,6 +150,20 @@ trait CrudServiceGeneratorFunctions
 	}
 
 	/**
+	 * Get the path to where we should store app components.
+	 *
+	 * @param  string $name
+	 * @return string
+	 */
+	protected function getAppPath($component , $section)
+	{
+		$section_data = app()['config']["vuexcrud.sections." . $section];
+		$file_path = '/app/' . trim($section_data[$component] , " /\t\n\r\0\x0B");
+
+		return base_path() . $file_path;
+	}
+
+	/**
 	 * Get the path to where we should store vue components.
 	 *
 	 * @param  string $name

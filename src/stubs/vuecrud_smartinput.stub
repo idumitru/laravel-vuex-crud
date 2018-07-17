@@ -1,0 +1,331 @@
+<style>
+    li {
+        cursor: pointer;
+    }
+</style>
+<template>
+    <div>
+
+        <input
+                @focus="input_focused"
+                @blur="input_blurred"
+                @input="onChange"
+                type="text"
+                class="form-control"
+                id="input_text_id"
+                :title="title"
+                :placeholder="placeholder"
+                v-model="input_data"
+        >
+        <div>
+            <ul
+                    v-show="(input_has_focus || dd_has_focus) && data_ready && data_feed.length > 0"
+                    @focus="dd_focused"
+                    @blur="dd_blurred"
+            >
+                <template v-if="label===''">
+                    <li v-for="data in data_feed"><div @click="input_data=data">{{data}}</div></li>
+                </template>
+                <template v-else>
+                    <li v-for="data in data_feed" @click="input_data=data[label]"><div>--{{data[label]}}</div></li>
+                </template>
+            </ul>
+        </div>
+    </div>
+</template>
+
+<script>
+	export default {
+		mounted()
+		{
+		},
+
+		props: {
+			info_name: String,
+			settings: Object,
+			settings_ready: Boolean,
+			value: String,
+
+			mode: {
+				type: String,
+				default()
+				{
+					return 'options';
+				}
+			},
+			placeholder: {
+				type: String,
+				default()
+				{
+					return '';
+				}
+			},
+			title: {
+				type: String,
+				default()
+				{
+					return '';
+				}
+			},
+			options: {
+				type: Array,
+				default()
+				{
+					return [];
+				}
+			},
+			label: {
+				type: String,
+				default()
+				{
+					return '';
+				}
+			},
+		},
+
+		watch: {
+			settings_ready: function (val) {
+				if (val === true)
+				{
+					let test_result = this.verify_settings();
+					if (test_result === false)
+					{
+						return;
+					}
+
+					if (this.mode === 'vuex')
+					{
+						this.load_data();
+					}
+				}
+			}
+		},
+
+		data: function () {
+			return {
+				input_data: '',
+				data_ready: false,
+				input_has_focus: false,
+				dd_has_focus: false,
+
+				loading_data_sources: [],
+				is_loading: false,
+			}
+		},
+
+		computed: {
+			data_feed: function () {
+				let data_feed = [];
+
+				if (this.settings_ready)
+				{
+					if (this.mode === 'vuex')
+					{
+						if (this.data_ready)
+						{
+							if (Array.isArray(this.settings.load_components))
+							{
+								let self = this;
+								data_feed = this.$store.getters[this.settings.vuex_src].filter(function (row) {
+									if(self.input_data === "")
+                                    {
+                                    	return 1;
+                                    }
+									if (self.isString(row) || self.isNumber(row))
+									{
+										return String(row).toLowerCase().indexOf(self.input_data) > -1;
+									}
+									else
+									{
+										return String(row[self.label]).toLowerCase().indexOf(self.input_data) > -1;
+									}
+								});
+							}
+						}
+					}
+					else if (this.mode === 'options')
+					{
+						let self = this;
+						data_feed = this.options.filter(function (row) {
+							if(self.input_data === "")
+							{
+								return 1;
+							}
+							if (self.isString(row) || self.isNumber(row))
+							{
+								return String(row).toLowerCase().indexOf(self.input_data) > -1;
+							}
+							else
+							{
+								return String(row[self.label]).toLowerCase().indexOf(self.input_data) > -1;
+							}
+						});
+					}
+				}
+
+				return data_feed;
+			}
+		},
+
+		methods: {
+			input_focused: function() {
+				this.$nextTick(() => {
+					this.input_has_focus = true;
+				});
+			},
+			input_blurred: function() {
+				this.$nextTick(() => {
+					this.input_has_focus = false;
+				});
+			},
+			dd_focused: function() {
+				this.$nextTick(() => {
+					this.dd_has_focus = true;
+				});
+			},
+			dd_blurred: function() {
+				this.$nextTick(() => {
+					this.dd_has_focus = false;
+				});
+			},
+			isString: function (value) {
+				return typeof value === 'string' || value instanceof String;
+			},
+			isNumber : function (value) {
+				return typeof value === 'number' && isFinite(value);
+			},
+			verify_settings: function () {
+				if (this.mode === 'vuex')
+				{
+					if (!('vuex_src' in this.settings))
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'Missing vuex source variable for smart input ' + this.info_name,
+						});
+						return false;
+					}
+					if (!('load_components' in this.settings))
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'Missing load components for smart input ' + this.info_name,
+						});
+						return false;
+					}
+					if (!Array.isArray(this.settings.load_components))
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'Load components not properly formatted for smart input ' + this.info_name,
+						});
+						return false;
+					}
+				}
+				else if(this.mode === 'options')
+                {
+					if (!Array.isArray(this.options))
+					{
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: 'Options property is not array for smart input ' + this.info_name,
+						});
+						return false;
+					}
+                }
+
+				return true;
+			},
+
+			load_data: function () {
+
+				this.loading_data_sources = [];
+
+				let load_components = [];
+
+				for (let i = 0; i < this.settings.load_components.length; i++)
+				{
+					load_components.push({
+						tag: this.settings.load_components[i].tag,
+						fetch_action: this.settings.load_components[i].fetch_action,
+					});
+				}
+
+				for (let i = 0; i < load_components.length; i++)
+				{
+					if (('fetch_action' in load_components[i]))
+					{
+						let call_data = {
+							index_start: 0,
+							items_count: 0,
+							tag: load_components[i].tag
+						};
+
+						this.is_loading = true;
+
+						this.loading_data_sources.push({
+							tag: load_components[i].tag,
+							loading: 1
+						});
+
+						this.$store.dispatch(load_components[i].fetch_action, call_data).then(
+							success_data => {
+								this.load_complete(call_data.tag);
+								this.check_load_complete();
+							},
+							error_data => {
+								this.$swal({
+									type: 'error',
+									title: 'Oops...',
+									text: error_data,
+								});
+								this.load_complete(call_data.tag);
+								this.check_load_complete();
+							}
+						);
+					}
+				}
+			},
+
+			load_complete: function (tag) {
+				if (tag !== null)
+				{
+					for (let i = 0; i < this.loading_data_sources.length; i++)
+					{
+						if (this.loading_data_sources[i].tag === tag)
+						{
+							this.loading_data_sources[i].loading = 0;
+							break;
+						}
+					}
+				}
+			},
+
+			check_load_complete: function () {
+				let in_progress = 0;
+				for (let i = 0; i < this.loading_data_sources.length; i++)
+				{
+					if (this.loading_data_sources[i].loading === 1)
+					{
+						in_progress = 1;
+						break;
+					}
+				}
+
+				if (in_progress === 0)
+				{
+					this.is_loading = false;
+					this.data_ready = true;
+				}
+			},
+
+			onChange: function () {
+				this.$emit('input', this.input_data);
+			},
+		}
+	}
+</script>

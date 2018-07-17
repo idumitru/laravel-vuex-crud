@@ -15,7 +15,7 @@ const actions = {
 				]
 			};
 
-			axios.post(`/adminapi`, payload).then(
+			axios.post(call_data.api_route, payload).then(
 				(response) => {
 					if(('status' in response.data) && response.data.status === 'OK')
 					{

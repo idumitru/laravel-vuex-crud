@@ -1,20 +1,29 @@
+import Vue from 'vue';
+import VueRouter from 'vue-router';
+
 const {{routes_name}} = [
-	{
-		path: '/{{base_path}}',
-		component: Vue.component( 'Main', require( './layouts/Main.vue' ) ),
-		children: [
-			{
-				path: 'growcycles',
-				component: Vue.component( 'GrowCycles', require( './controllers/GrowCycles.vue' ) )
-			},
-			{
-				path: '',
-				component: Vue.component( 'Dashboard', require( './controllers/Dashboard.vue' ) )
-			},
-		]
-	}
+    {
+        path: '/{{base_path}}',
+        component: Vue.component( 'Main', require( './layouts/Main.vue' ) ),
+        children: [
+            {
+                path: 'example',
+                component: Vue.component( 'Example', require( './pages/Main/Example.vue' ) )
+            },
+            {
+                path: '',
+                component: Vue.component( 'Dashboard', require( './pages/Main/Dashboard.vue' ) )
+            },
+        ]
+    }
 ];
 
+const {{router_name}} = new VueRouter({
+    routes:{{routes_name}},
+    base: '/',
+    mode: 'history',
+});
+
 export default {
-	{{routes_name}}
+    {{router_name}}
 }

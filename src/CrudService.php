@@ -11,41 +11,43 @@ use Illuminate\Support\Facades\Input;
 class CrudService
 {
 	public static $service_name = 'default';
+	public static $model_name = '';
 
 	protected static $default_methods = [
-		'Create',
-		'Fetch',
-		'Delete',
-		'Edit'
+		'CreateItem',
+		'FetchItems',
+		'DeleteItem',
+		'EditItem'
 	];
 
 	protected static $extra_methods = [];
 
 	public static function GetDefaultMethods()
 	{
-		return self::$default_methods;
+		return static::$default_methods;
 	}
 
 	public static function GetExtraMethods()
 	{
-		return self::$extra_methods;
+		return static::$extra_methods;
 	}
 
-	public static function HandleRequest($service, $method, $data)
+	public static function HandleRequest($method, $data)
 	{
-		if (!in_array($method, self::$accepted_methods))
-		{
-			$response = [
-				'status' => 'FAILED',
-				'reason' => 'Bad method'
-			];
-			return $response;
-		}
+		return static::$method($data);
 	}
 
-	public static function Fetch($model, $fields, $create_info, $fetch_data, $error_tag)
+	public static function GetCrudTableDetails()
 	{
-		if (!isset($fetch_data['index_start']))
+		$table = new CrudTableDetail();
+		return $table;
+	}
+
+	public static function FetchItems($data)
+	{
+		$error_tag = static::$model_name . ' FetchItems - ';
+		
+		if (!isset($data['index_start']))
 		{
 			$response = [
 				'status' => 'FAILED',
@@ -54,7 +56,7 @@ class CrudService
 			return $response;
 		}
 
-		if (!isset($fetch_data['items_count']))
+		if (!isset($data['items_count']))
 		{
 			$response = [
 				'status' => 'FAILED',
@@ -63,9 +65,25 @@ class CrudService
 			return $response;
 		}
 
+		$my_model = app()->getNamespace() . static::$model_name;
+
+		$table_detail = static::GetCrudTableDetails();
+		$table_config = $table_detail->GetConfig();
+
+		$fields = array();
+		foreach($table_config as $field_name => $field_data)
+		{
+			if($field_data['hidden'] === true)
+			{
+				continue;
+			}
+
+			$fields[] = $field_name;
+		}
+
 		try
 		{
-			$items = $model::all($fields)->toArray();
+			$items = $my_model::all($fields)->toArray();
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -83,139 +101,107 @@ class CrudService
 
 	}
 
-	public static function Create($model, $fields, $create_info, $create_data, $error_tag)
+	public static function CreateItem($data)
 	{
-		if (isset($create_info['required']))
+		$error_tag = static::$model_name . ' CreateItem - ';
+
+		$my_model = app()->getNamespace() . static::$model_name;
+
+		$table_detail = static::GetCrudTableDetails();
+		$table_config = $table_detail->GetConfig();
+
+		$required_fields = array();
+		foreach($table_config as $field_name => $field_data)
 		{
-			foreach ($create_info['required'] as $required_field)
+			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['nullable'] === true)
 			{
-				if (!isset($create_data[$required_field]))
-				{
-					$response = [
-						'status' => 'FAILED',
-						'reason' => $error_tag . 'Missing ' . $required_field . ' field'
-					];
-					return $response;
-				}
+				continue;
+			}
+
+			$required_fields[] = $field_name;
+		}
+
+		foreach ($required_fields as $required_field)
+		{
+			if (!isset($data[$required_field]))
+			{
+				$response = [
+					'status' => 'FAILED',
+					'reason' => $error_tag . 'Missing ' . $required_field . ' field'
+				];
+				return $response;
 			}
 		}
 
-		if (isset($create_info['not_empty']))
+
+		$trim_fields = array();
+		foreach($table_config as $field_name => $field_data)
 		{
-			foreach ($create_info['not_empty'] as $required_field)
+			if($field_data['trim'] !== true)
 			{
-				if (trim($create_data[$required_field]) == '')
-				{
-					$response = [
-						'status' => 'FAILED',
-						'reason' => $error_tag . $required_field . ' should not be empty'
-					];
-					return $response;
-				}
+				continue;
 			}
+
+			$trim_fields[] = $field_name;
 		}
 
-		if (isset($create_info['trim_fields']))
+		foreach ($trim_fields as $trim_field)
 		{
-			foreach ($create_info['trim_fields'] as $trim_field)
-			{
-				$create_data[$trim_field] = trim($create_data[$trim_field]);
-			}
+			$data[$trim_field] = trim($data[$trim_field]);
 		}
 
-		if (!empty($create_info['where']))
-		{
-			$where_clause = [];
-			foreach ($create_info['where'] as $where_rule)
-			{
-				if (count($where_rule) == 1)
-				{
-					$where_clause[] = [$where_rule[0], $create_data[$where_rule[0]]];
-				}
-				else if (count($where_rule) == 2)
-				{
-					$where_clause[] = [$where_rule[0], $where_rule[1], $create_data[$where_rule[0]]];
-				}
-				else if (count($where_rule) == 3)
-				{
-					$where_clause[] = [$where_rule[0], $where_rule[1], $where_rule[2]];
-				}
-			}
-
-			if (count($where_clause) > 0)
-			{
-				try
-				{
-					$exists = $model::where($where_clause)->count();
-				} catch (\Exception $e)
-				{
-					$response = [
-						'status' => 'FAILED',
-						'reason' => $error_tag . 'Error retrieving database data in CreateItem: ' . $e->getMessage()
-					];
-					return $response;
-				}
-
-				if ($exists > 0)
-				{
-					$response = [
-						'status' => 'FAILED',
-						'reason' => $error_tag . 'Item is a duplicate'
-					];
-					return $response;
-				}
-			}
-		}
+//		if (!empty($create_info['where']))
+//		{
+//			$where_clause = [];
+//			foreach ($create_info['where'] as $where_rule)
+//			{
+//				if (count($where_rule) == 1)
+//				{
+//					$where_clause[] = [$where_rule[0], $create_data[$where_rule[0]]];
+//				}
+//				else if (count($where_rule) == 2)
+//				{
+//					$where_clause[] = [$where_rule[0], $where_rule[1], $create_data[$where_rule[0]]];
+//				}
+//				else if (count($where_rule) == 3)
+//				{
+//					$where_clause[] = [$where_rule[0], $where_rule[1], $where_rule[2]];
+//				}
+//			}
+//
+//			if (count($where_clause) > 0)
+//			{
+//				try
+//				{
+//					$exists = $model::where($where_clause)->count();
+//				} catch (\Exception $e)
+//				{
+//					$response = [
+//						'status' => 'FAILED',
+//						'reason' => $error_tag . 'Error retrieving database data in CreateItem: ' . $e->getMessage()
+//					];
+//					return $response;
+//				}
+//
+//				if ($exists > 0)
+//				{
+//					$response = [
+//						'status' => 'FAILED',
+//						'reason' => $error_tag . 'Item is a duplicate'
+//					];
+//					return $response;
+//				}
+//			}
+//		}
 
 		try
 		{
-			$item = new $model;
-			foreach ($create_data as $field_name => $field_value)
+			$item = new $my_model;
+			foreach ($data as $field_name => $field_value)
 			{
-				if (isset($create_info['ignore_columns']) && count($create_info['ignore_columns']) > 0 && in_array($field_name, $create_info['ignore_columns']))
-				{
-					continue;
-				}
 				$item->$field_name = $field_value;
 			}
-			if (isset($create_info['special_fields']))
-			{
-				foreach ($create_info['special_fields'] as $field_name => $field_value)
-				{
-					$item->$field_name = $field_value;
-				}
-			}
-
-			if (isset($create_info['additional_transactions']) && count($create_info['additional_transactions']) > 0)
-			{
-				\DB::beginTransaction();
-			}
 			$item->save();
-
-			if (isset($create_info['additional_transactions']) && count($create_info['additional_transactions']) > 0)
-			{
-				$success = TRUE;
-				$transaction_result = '';
-				foreach ($create_info['additional_transactions'] as $transaction_method)
-				{
-					$transaction_result = self::$transaction_method($create_data, $item->id);
-					if ($transaction_result === FALSE)
-					{
-						$success = FALSE;
-						break;
-					}
-				}
-
-				if ($success === TRUE)
-				{
-					\DB::commit();
-				}
-				else
-				{
-					\DB::rollBack();
-					throw new \Exception("Something went wrong (" . $transaction_result . ")");
-				}
-			}
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -232,11 +218,14 @@ class CrudService
 		return $response;
 	}
 
-	public static function Delete($model, $fields, $create_info, $delete_data, $error_tag)
+	public static function DeleteItem($data)
 	{
+		$error_tag = static::$model_name . ' FetchItems - ';
+		$my_model = app()->getNamespace() . static::$model_name;
+
 		try
 		{
-			$model::destroy($delete_data);
+			$my_model::destroy($data);
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -253,7 +242,7 @@ class CrudService
 		return $response;
 	}
 
-	public static function Edit($model, $fields, $create_info, $edit_data, $error_tag)
+	public static function EditItem($model, $fields, $create_info, $edit_data, $error_tag)
 	{
 		if (!isset($edit_data['id']))
 		{

@@ -3,8 +3,15 @@
 namespace {{namespace}};
 
 use SoftDreams\LaravelVuexCrud\CrudService;
+use SoftDreams\LaravelVuexCrud\CrudTableDetail;
 
 class {{class}} extends CrudService
 {
 	public static $service_name = '{{crudname}}';
+	public static $model_name = '{{modelname}}';
+
+	protected static $extra_methods = [];
+
+{{crud_table}}
+
 }

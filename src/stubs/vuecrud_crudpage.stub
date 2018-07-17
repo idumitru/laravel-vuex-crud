@@ -1,0 +1,22 @@
+<template>
+    <div>
+        <div class="mb-4">
+            <{{page}}Listing></{{page}}Listing>
+        </div>
+    </div>
+</template>
+
+<script>
+
+	import {{page}}Listing from '../../components/{{page}}/{{page}}Listing';
+
+	export default {
+		mounted()
+		{
+		},
+
+		components: {
+			{{page}}Listing
+		}
+	}
+</script>

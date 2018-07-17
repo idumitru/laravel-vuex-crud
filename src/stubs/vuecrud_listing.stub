@@ -1,0 +1,70 @@
+<template>
+    <div class="border border-dark rounded p-4">
+        <div class="d-flex flex-row justify-content-between">
+            <h3 class="pb-4">{{uc_item}} List</h3>
+            <p class="">
+                <b-btn v-b-modal.modal{{page}}Create>Create</b-btn>
+            </p>
+        </div>
+		<ListingGrid v-if="variables_ready"
+				:source_columns = "gridColumns"
+				:settings = "settings"
+				grid_name = "{{uc_item}} Listing"
+		>
+		</ListingGrid>
+
+        <b-modal hide-footer id="modal{{page}}Create" title="Create a new {{item}}">
+            <{{page}}Create></{{page}}Create>
+        </b-modal>
+    </div>
+</template>
+
+<script>
+
+	import {{page}}Create from './{{page}}Create';
+
+    export default {
+		components: {
+			{{page}}Create,
+		},
+
+        mounted() {
+			this.prepare_data();
+        },
+
+		data: function() {
+			return {
+				gridColumns: [],
+				settings: [],
+				variables_ready: false,
+			}
+		},
+
+		methods: {
+			prepare_data: function () {
+				this.gridColumns = [
+					{
+						tag: '{{module}}',
+						is_primary: true,
+						data_getter: '{{module}}/{{module}}GetItems',
+						fetch_action: '{{module}}/{{module}}FetchItems',
+						columns: [
+{{columns}}
+						]
+					},
+				];
+
+				this.settings = {
+					do_initial_load: true,
+					can_edit: true,
+					can_delete: true,
+					edit_action: '{{module}}/{{module}}EditItem',
+					delete_action: '{{module}}/{{module}}DeleteItem',
+					custom_actions: []
+				};
+
+				this.variables_ready = true;
+			}
+		}
+	}
+</script>

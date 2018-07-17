@@ -1,0 +1,76 @@
+			load_data: function () {
+
+				this.loading_data_sources = [];
+
+				let load_components = [
+{{load_components}}
+                ];
+
+				for (let i = 0; i < load_components.length; i++)
+				{
+					if (('fetch_action' in load_components[i]))
+					{
+						let call_data = {
+							index_start: 0,
+							items_count: 0,
+							tag: load_components[i].tag
+						};
+
+						this.is_loading = true;
+
+
+						this.loading_data_sources.push({
+							tag: load_components[i].tag,
+							loading: 1
+						});
+
+						this.$store.dispatch(load_components[i].fetch_action, call_data).then(
+							success_data => {
+								this.load_complete(call_data.tag);
+								this.check_load_complete();
+							},
+							error_data => {
+								this.$swal({
+									type: 'error',
+									title: 'Oops...',
+									text: error_data,
+								});
+
+								this.load_complete(call_data.tag);
+								this.check_load_complete();
+							}
+						);
+					}
+				}
+			},
+
+			load_complete: function (tag) {
+				if (tag !== null)
+				{
+					for (let i = 0; i < this.loading_data_sources.length; i++)
+					{
+						if (this.loading_data_sources[i].tag === tag)
+						{
+							this.loading_data_sources[i].loading = 0;
+							break;
+						}
+					}
+				}
+			},
+
+			check_load_complete: function () {
+				let in_progress = 0;
+				for (let i = 0; i < this.loading_data_sources.length; i++)
+				{
+					if (this.loading_data_sources[i].loading === 1)
+					{
+						in_progress = 1;
+						break;
+					}
+				}
+
+				if (in_progress === 0)
+				{
+					this.is_loading = false;
+				}
+			},

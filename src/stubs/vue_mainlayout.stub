@@ -1,0 +1,24 @@
+<template>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-1 bg-primary">
+                <ul class="nav flex-column">
+					<li class="nav-item">
+						<router-link to="/{{base_path}}" class="nav-link active">Dashboard</router-link>
+					</li>
+					<li class="nav-item">
+						<router-link to="/{{base_path}}/example" class="nav-link" href="#">ExamplePage</router-link>
+					</li>
+                </ul>
+            </div>
+        	<router-view></router-view>
+        </div>
+    </div>
+</template>
+
+<script>
+    export default {
+        mounted() {
+        }
+    }
+</script>

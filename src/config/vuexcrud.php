@@ -32,6 +32,9 @@ return [
 				'pages' => 'pages',
 				'store' => 'store',
 			],
+			'inject_vue_route' => 1,
+			'inject_vue_nav' => 1,
+			'inject_routes' => 1,
 		],
 
 		/*
@@ -43,5 +46,10 @@ return [
 		],
 
 		*/
-	]
+	],
+
+	'api_end_points' => [
+        /* -- api inject module -- do not modify this comment */
+        /* -- api end inject module -- do not modify this comment */
+	],
 ];

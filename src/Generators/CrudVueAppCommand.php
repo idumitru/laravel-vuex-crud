@@ -101,6 +101,8 @@ class CrudVueAppCommand extends Command
 		$vuex_apicomm_path = $vuex_modules_path . '/apicomm.js';
 		$this->files->put($vuex_apicomm_path, $this->files->get(__DIR__ . '/../stubs/vuex_apicomm.stub'));
 
+		$this->createDemoLayout($path);
+		
 		$this->info('Vue tree for ' . $this->my_folder_name . ' created successfully in ' . $path);
 	}
 
@@ -109,6 +111,7 @@ class CrudVueAppCommand extends Command
 		$stub = $this->files->get(__DIR__ . '/../stubs/routesjs.stub');
 
 		$stub = str_replace('{{routes_name}}', $this->my_folder_name . "routes", $stub);
+		$stub = str_replace('{{router_name}}', $this->my_folder_name . "router", $stub);
 		$stub = str_replace('{{base_path}}', $this->my_folder_name, $stub);
 
 		return $stub;
@@ -119,10 +122,39 @@ class CrudVueAppCommand extends Command
 		$stub = $this->files->get(__DIR__ . '/../stubs/appjs.stub');
 
 		$stub = str_replace('{{routes_name}}', $this->my_folder_name . "routes", $stub);
+		$stub = str_replace('{{router_name}}', $this->my_folder_name . "router", $stub);
 		$stub = str_replace('{{app_router}}', $this->my_folder_name . "router", $stub);
-		$stub = str_replace('{{api_route}}', ucwords(camel_case($this->my_folder_name)) . 'Api', $stub);
+		$stub = str_replace('{{mount_point}}', $this->my_folder_name . 'app', $stub);
 
 		return $stub;
 	}
 
+	protected function createDemoLayout($app_path)
+	{
+		$layouts_path = $app_path . '/layouts';
+		$layout_file_path = $layouts_path . '/Main.vue';
+
+		$this->files->put($layout_file_path, $this->compileDemoLayout());
+
+		$pages_path = $app_path . '/pages';
+		$pages_layout_path = $pages_path . '/Main';
+		
+		$this->createDirectory($pages_layout_path);
+
+		$dashboard_file_path = $pages_layout_path . '/Dashboard.vue';
+		$example_file_path = $pages_layout_path . '/Example.vue';
+
+		$this->files->put($dashboard_file_path, $this->files->get(__DIR__ . '/../stubs/vue_dashboardpage.stub'));
+		$this->files->put($example_file_path, $this->files->get(__DIR__ . '/../stubs/vue_examplepage.stub'));
+
+	}
+
+	protected function compileDemoLayout()
+	{
+		$stub = $this->files->get(__DIR__ . '/../stubs/vue_mainlayout.stub');
+
+		$stub = str_replace('{{base_path}}', $this->my_folder_name, $stub);
+
+		return $stub;
+	}
 }

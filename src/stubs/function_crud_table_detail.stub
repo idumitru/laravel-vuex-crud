@@ -1,0 +1,8 @@
+    public static function GetCrudTableDetails()
+    {
+        $table = new CrudTableDetail();
+
+{{table}}
+
+        return $table;
+    }

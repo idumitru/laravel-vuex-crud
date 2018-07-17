@@ -1,0 +1,8 @@
+<template>
+    <div class="loading-overlay">
+        <div class="circle_container">
+            <div class="circle"></div>
+            <div class="circle1"></div>
+        </div>
+    </div>
+</template>

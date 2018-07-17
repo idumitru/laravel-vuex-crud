@@ -3,7 +3,7 @@ function randomIntFromInterval(min, max)
 	return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-function generateCreateItem(service, tag)
+function generateCreateItem(api_route, service, tag)
 {
 	return function (context, item_data) {
 		return new Promise((success, failed) => {
@@ -11,11 +11,10 @@ function generateCreateItem(service, tag)
 			let unit_name = tag + 'CreateItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
 				unit: unit_name,
+				api_route: api_route,
 				service: service,
-				method: 'CreateItem',
-				tag: tag,
-				type: 'crud',
-				data: item_data
+				data: item_data,
+				method: 'CreateItem'
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -51,7 +50,7 @@ function generateCreateItem(service, tag)
 }
 
 
-function generateFetchItems(service, tag)
+function generateFetchItems(api_route, service, tag)
 {
 	return function (context, items) {
 		return new Promise((success, failed) => {
@@ -59,11 +58,10 @@ function generateFetchItems(service, tag)
 			let unit_name = tag + 'FetchItems' + randomIntFromInterval(1000, 100000);
 			let call_data = {
 				unit: unit_name,
+				api_route: api_route,
 				service: service,
+				data: items,
 				method: 'FetchItems',
-				tag: tag,
-				type: 'crud',
-				data: items
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -98,7 +96,7 @@ function generateFetchItems(service, tag)
 	}
 }
 
-function generateDeleteItem(service, tag)
+function generateDeleteItem(api_route, service, tag)
 {
 	return function (context, item_id) {
 		return new Promise((success, failed) => {
@@ -106,11 +104,10 @@ function generateDeleteItem(service, tag)
 			let unit_name = tag + 'DeleteItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
 				unit: unit_name,
+				api_route: api_route,
 				service: service,
+				data: item_id,
 				method: 'DeleteItem',
-				tag: tag,
-				type: 'crud',
-				data: item_id
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -145,7 +142,7 @@ function generateDeleteItem(service, tag)
 	}
 }
 
-function generateEditItem(service, tag)
+function generateEditItem(api_route, service, tag)
 {
 	return function (context, edit_data) {
 		return new Promise((success, failed) => {
@@ -153,11 +150,10 @@ function generateEditItem(service, tag)
 			let unit_name = tag + 'EditItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
 				unit: unit_name,
+				api_route: api_route,
 				service: service,
+				data: edit_data,
 				method: 'EditItem',
-				tag: tag,
-				type: 'crud',
-				data: edit_data
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -192,12 +188,12 @@ function generateEditItem(service, tag)
 	}
 }
 
-function generateActions(actions, service, tag)
+function generateActions(actions, api_route, service, tag)
 {
-	actions[tag + 'CreateItem'] = generateCreateItem(service, tag);
-	actions[tag + 'FetchItems'] = generateFetchItems(service, tag);
-	actions[tag + 'DeleteItem'] = generateDeleteItem(service, tag);
-	actions[tag + 'EditItem'] = generateEditItem(service, tag);
+	actions[tag + 'CreateItem'] = generateCreateItem(api_route, service, tag);
+	actions[tag + 'FetchItems'] = generateFetchItems(api_route, service, tag);
+	actions[tag + 'DeleteItem'] = generateDeleteItem(api_route, service, tag);
+	actions[tag + 'EditItem'] = generateEditItem(api_route, service, tag);
 }
 
 function generateMutations(mutations, var_name, tag)
@@ -268,7 +264,7 @@ function getActions(crud_variables)
 	let actions = {};
 	for (let i = 0; i < crud_variables.length; i++)
 	{
-		generateActions(actions, crud_variables[i].service, crud_variables[i].tag);
+		generateActions(actions, crud_variables[i].api_route, crud_variables[i].service, crud_variables[i].tag);
 	}
 
 	return actions;

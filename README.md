@@ -46,21 +46,20 @@ php artisan serve
 
 6. Point your browser to http://127.0.0.1:8000/ and you should see the new laravel app you just created
 
+required npm:
+npm install es6-promise --save-dev
+npm install vue-sweetalert2 --save-dev
+npm install vue2-datepicker --save-dev
+npm install vue-select --save-dev
+
 Commands:
-$ php artisan vuexcrud:laravel:make:api admin
-Api handler created successfully.
 
-$ php artisan vuexcrud:laravel:make:service companies cici
-Configuration section "cici" does not exists!
-
-$ php artisan vuexcrud:vue:make:app admin
-Vue tree for baubau created successfully
-
-$ php artisan vuexcrud:vue:make:layout admin main
-Layout Main already exits!
-
-$ php artisan vuexcrud:vue:make:page admin main companies
-Layout Main already exits!
-
-$ php artisan vuexcrud:vuex:make:module cici companies
-Module companies for app cici created successfully in D:\Work\Websites\dev1.vuexcrud.eiddew.com\vuexcrud/resources/assets/js/vuexcrud/cici/store/modules/companies.js
+$ php artisan vuexcrud:laravel:make:api ApiName {section}
+$ php artisan vuexcrud:laravel:make:crudservice ApiName ModelName ServiceName {section}
+$ php artisan vuexcrud:laravel:make:service ApiName ServiceName {section}
+$ php artisan vuexcrud:laravel:inject:service ApiName ServiceName {section}
+$ php artisan vuexcrud:vue:make:app AppName {section}
+$ php artisan vuexcrud:vue:make:layout AppName LayoutName {section}
+$ php artisan vuexcrud:vue:make:page AppName LayoutName PageName {section}
+$ php artisan vuexcrud:vue:make:crudpage AppName LayoutName ServiceName VuexModule PageName {section}
+$ php artisan vuexcrud:vuex:make:module AppName ModuleName {section}

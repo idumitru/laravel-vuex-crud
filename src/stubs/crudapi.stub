@@ -7,18 +7,12 @@ use Illuminate\Http\Request;
 
 class {{class}} extends CrudController
 {
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
+    protected static $crud_services = [
+        /* -- api inject module -- do not modify this comment */
+        /* -- api end inject module -- do not modify this comment */
+    ];
 
-    protected $crud_services = [];
+    protected static $web_route_path = "{{api_path}}";
+    protected static $web_route_name = "{{api_path}}";
 
-    public function __construct()
-    {
-        //$this->middleware('auth');
-
-		parent::__construct();
-    }
 }

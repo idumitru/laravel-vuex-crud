@@ -1,0 +1,64 @@
+<template>
+    <div>
+        <form class="loading-coverable">
+            <div class="form-group pb-4">
+{{inputs}}
+            </div>
+            <button
+                    class="btn btn-primary"
+                    type="button"
+                    @click="create_item"
+            >
+                Submit
+            </button>
+
+            <LoadingAnim v-if="is_loading"></LoadingAnim>
+        </form>
+    </div>
+</template>
+
+<script>
+    export default {
+        mounted() {
+{{load_data}}
+{{settings_calls}}
+        },
+
+		data: function () {
+			return {
+{{variables}}
+{{settings_vars}}
+				is_loading: false,
+			}
+		},
+
+		methods: {
+{{settings_functions}}
+			create_item: function () {
+{{warnings}}
+				let call_data = {
+{{call_data}}
+                };
+
+				this.is_loading = true;
+				this.$store.dispatch('{{module}}/{{module}}CreateItem', call_data).then(
+					success_data => {
+{{reset_data}}
+						this.is_loading = false;
+						this.$root.$emit('bv::hide::modal','modal{{page}}Create');
+					},
+					error_data => {
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: error_data,
+						});
+
+						this.is_loading = false;
+					}
+				);
+			},
+{{loading_functions}}
+		},
+	}
+</script>

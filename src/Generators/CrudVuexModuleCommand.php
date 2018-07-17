@@ -21,6 +21,7 @@ class CrudVuexModuleCommand extends Command
 
 	protected $my_folder_name = 'example';
 	protected $my_module_name = 'example';
+	protected $camel_module_name = 'example';
 
 	/**
 	 * The console command description.
@@ -33,6 +34,7 @@ class CrudVuexModuleCommand extends Command
 	{
 		$this->my_folder_name = strtolower($this->argument('app'));
 		$this->my_module_name = strtolower($this->argument('name'));
+		$this->camel_module_name = ucwords(camel_case($this->argument('name')));
 
 		if(strpos($this->my_folder_name , "/") !== FALSE || strpos($this->my_folder_name , "\\") !== FALSE)
 		{
@@ -90,10 +92,14 @@ class CrudVuexModuleCommand extends Command
 			if($index_contents)
 			{
 				$import_pos = -1;
+				$import_end_pos = -1;
 				$module_pos = -1;
+				$module_end_pos = -1;
 
 				$import_marker = '/* -- vuexcrud inject imports -- do not modify this comment */';
+				$import_end_marker = '/* -- vuexcrud end inject imports -- do not modify this comment */';
 				$module_marker = '/* -- vuexcrud inject module -- do not modify this comment */';
+				$module_end_marker = '/* -- vuexcrud end inject module -- do not modify this comment */';
 
 				$index_lines = explode("\n" , str_replace("\r\n" , "\n" , $index_contents));
 
@@ -112,6 +118,17 @@ class CrudVuexModuleCommand extends Command
 						}
 					}
 
+					//import_end_marker pos
+					for($i = 0 ; $i < $index_lines_count ; $i++)
+					{
+						$search_pos = strpos(trim($index_lines[$i]) , $import_end_marker);
+						if( $search_pos === 0)
+						{
+							$import_end_pos = $i;
+							break;
+						}
+					}
+
 					//module_pos pos
 					for($i = 0 ; $i < $index_lines_count ; $i++)
 					{
@@ -122,20 +139,62 @@ class CrudVuexModuleCommand extends Command
 						}
 					}
 
-					if($import_pos != -1)
+					//module_end_pos pos
+					for($i = 0 ; $i < $index_lines_count ; $i++)
 					{
-						$import_text = "import " .  $this->my_module_name . " from './modules/" .  $this->my_module_name . "'";
-						array_splice( $index_lines, $import_pos + 1, 0, $import_text); // splice in at position 3
+						$search_pos = strpos(trim($index_lines[$i]) , $module_end_marker);
+						if( $search_pos === 0)
+						{
+							$module_end_pos = $i;
+						}
+					}
+
+					$import_text = "import " .  $this->my_module_name . " from './modules/" .  $this->my_module_name . "'";
+					$module_text = '        ' .  $this->my_module_name . ',';
+
+					$add_import = true;
+					if($import_pos != -1 && $import_end_pos != -1)
+					{
+						//search if already exists
+						for($i = $import_pos + 1 ; $i < $import_end_pos ; $i++)
+						{
+							$search_pos = strpos(trim($index_lines[$i]) , trim($import_text));
+							if( $search_pos === 0)
+							{
+								$add_import = false;
+							}
+						}
+					}
+
+					$add_module = true;
+					if($module_pos != -1 && $module_end_pos != -1)
+					{
+						//search if already exists
+						for($i = $module_pos + 1 ; $i < $module_end_pos ; $i++)
+						{
+							$search_pos = strpos(trim($index_lines[$i]) , trim($module_text));
+							if( $search_pos === 0)
+							{
+								$add_module = false;
+							}
+						}
+					}
+
+					$has_changes = false;
+					if($import_pos != -1 && $add_import === true)
+					{
+						array_splice( $index_lines, $import_pos + 1, 0, $import_text);
 						$module_pos++;
+						$has_changes = true;
 					}
 
-					if($module_pos != -1)
+					if($module_pos != -1 && $add_module === true)
 					{
-						$module_text = '        ' .  $this->my_module_name . ',';
-						array_splice( $index_lines, $module_pos + 1, 0, $module_text); // splice in at position 3
+						array_splice( $index_lines, $module_pos + 1, 0, $module_text);
+						$has_changes = true;
 					}
 
-					if($import_pos != -1 || $module_pos != -1)
+					if($has_changes)
 					{
 						$this->files->put($vuex_index_path , implode("\n" , $index_lines));
 					}
@@ -151,7 +210,8 @@ class CrudVuexModuleCommand extends Command
 		$stub = $this->files->get(__DIR__ . '/../stubs/modulejs.stub');
 
 		$stub = str_replace('{{var_name}}', $this->my_module_name, $stub);
-		$stub = str_replace('{{service_name}}', ucwords(camel_case($this->my_module_name)), $stub);
+		$stub = str_replace('{{api_route}}', ucwords(camel_case($this->my_folder_name)) . 'Api', $stub);
+		$stub = str_replace('{{service_name}}', $this->camel_module_name . "CrudService", $stub);
 
 		return $stub;
 	}
