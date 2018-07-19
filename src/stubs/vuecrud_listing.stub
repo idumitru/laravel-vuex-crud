@@ -7,14 +7,15 @@
             </p>
         </div>
 		<ListingGrid v-if="variables_ready"
-				:source_columns = "gridColumns"
-				:settings = "settings"
-				grid_name = "{{uc_item}} Listing"
+				     :source_columns = "gridColumns"
+				     :settings = "settings"
+{{reload_component}}{{trigger_component}}
+				     grid_name = "{{uc_item}} Listing"
 		>
 		</ListingGrid>
 
-        <b-modal hide-footer id="modal{{page}}Create" title="Create a new {{item}}">
-            <{{page}}Create></{{page}}Create>
+        <b-modal hide-footer v-model="show_modal{{page}}Create" id="modal{{page}}Create" title="Create a new {{item}}">
+            <{{page}}Create v-if="show_modal{{page}}Create"></{{page}}Create>
         </b-modal>
     </div>
 </template>
@@ -34,20 +35,33 @@
 
 		data: function() {
 			return {
+			    show_modal{{page}}Create: false,
 				gridColumns: [],
 				settings: [],
 				variables_ready: false,
+{{reload_var}}{{trigger_var}}
 			}
+		},
+
+		computed: {
+{{reload_computed}}
+		},
+
+		watch: {
+{{reload_watch}}
 		},
 
 		methods: {
 			prepare_data: function () {
+{{reload_prepare}}
+
 				this.gridColumns = [
 					{
 						tag: '{{module}}',
 						is_primary: true,
 						data_getter: '{{module}}/{{module}}GetItems',
 						fetch_action: '{{module}}/{{module}}FetchItems',
+{{filters}}
 						columns: [
 {{columns}}
 						]

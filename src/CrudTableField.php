@@ -17,6 +17,12 @@ class CrudTableField
 	protected $is_dropdown = false;
 	protected $dropdown_options = [];
 	protected $trim = false;
+	protected $is_filter = false;
+	protected $filter_compare = '';
+	protected $filter_source = '';
+	protected $with_filters = '';
+	protected $hide_for_create = false;
+	protected $generate = '';
 
 	/**
 	 * @var CrudTableDetail;
@@ -45,6 +51,12 @@ class CrudTableField
 		$config['is_dropdown'] = $this->is_dropdown;
 		$config['dropdown_options'] = $this->dropdown_options;
 		$config['trim'] = $this->trim;
+		$config['is_filter'] = $this->is_filter;
+		$config['filter_compare'] = $this->filter_compare;
+		$config['filter_source'] = $this->filter_source;
+		$config['with_filters'] = $this->with_filters;
+		$config['hide_for_create'] = $this->hide_for_create;
+		$config['generate'] = $this->generate;
 
 		return $config;
 	}
@@ -55,9 +67,29 @@ class CrudTableField
 		return $this;
 	}
 
+	public function filter($compare , $source)
+	{
+		$this->is_filter = true;
+		$this->filter_compare = $compare;
+		$this->filter_source = $source;
+		return $this;
+	}
+
 	public function hide()
 	{
 		$this->hidden = true;
+		return $this;
+	}
+
+	public function hide_for_create()
+	{
+		$this->hide_for_create = true;
+		return $this;
+	}
+
+	public function generate($generate_function)
+	{
+		$this->generate = trim($generate_function);
 		return $this;
 	}
 
@@ -135,6 +167,12 @@ class CrudTableField
 			'match_column' => $match_column,
 			'match_value' => $match_value,
 		);
+		return $this;
+	}
+
+	public function with_filters($crud_service)
+	{
+		$this->with_filters = trim($crud_service);
 		return $this;
 	}
 

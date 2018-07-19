@@ -74,6 +74,14 @@
                                                         </template>
                                                     </template>
                                                 </template>
+                                                <template v-else-if="key.data_source.type === 'vuex'">
+                                                    <template v-for="data_option in $store.getters[key.data_source.data_getter]">
+                                                        <template
+                                                                v-if="data_option[key.data_source.match_field] === entry[key.data_column].field_value">
+                                                            {{data_option[key.data_source.match_value]}}
+                                                        </template>
+                                                    </template>
+                                                </template>
                                             </template>
                                         </template>
                                         <template v-else>
@@ -172,13 +180,38 @@
 	export default {
 		mounted()
 		{
-			this.load_data();
+			if(this.wait_for_trigger === 0)
+            {
+				this.load_data();
+            }
+            else
+            {
+            	this.test_trigger();
+            }
 		},
 
 		props: {
 			source_columns: Array,
 			settings: Object,
 			grid_name: String,
+			reload_monitor: {
+				type: Object,
+                default () {
+					return {};
+                }
+            },
+            wait_for_trigger: {
+				type: Number,
+				default () {
+					return 0;
+				}
+            },
+            trigger_data: {
+				tupe: Array,
+				default () {
+					return [];
+				}
+            }
 		},
 
 		data: function () {
@@ -194,9 +227,18 @@
 				loading_data_sources: [],
 				has_data_feed_error: false,
 				data_feed_error_message: '',
-				debug_message: []
 			}
 		},
+
+        watch: {
+			reload_monitor: function(val) {
+				this.reload_data();
+            },
+			trigger_data: function(val) {
+				this.test_trigger();
+            }
+        },
+
 		computed: {
 			has_actions: function () {
 				return this.settings.can_edit || this.settings.can_delete || (this.settings.custom_actions && this.settings.custom_actions.length > 0);
@@ -271,9 +313,7 @@
 					if (this.source_columns[i].is_primary && this.source_columns[i].is_primary === true)
 					{
 						primary_index = i;
-						//primary_data_source = this.source_columns[i].data_feed;
 						primary_data_source = this.$store.getters[this.source_columns[i].data_getter];
-						//primary_data_source = this.source_columns[i].data_vuex;
 					}
 				}
 
@@ -282,12 +322,6 @@
 					return my_data;
 				}
 
-				//this.debug_message.push('here1');
-				//this.debug_message.push('getter length: ' + this.$store.state.users.user_list.length);
-				//this.debug_message.push('getter length: ' + this.$store.getters['users/getAllUsers'].length);
-				//this.debug_message.push('getter length: ' + primary_data_source.length);
-				//this.debug_message.push('primary data source length: ' + primary_data_source.length);
-				//this.debug_message.push('primary data source length: ' + this.source_columns[primary_index].data_feed.length);
 				//fill primary rows
 				for (let i = 0; i < primary_data_source.length; i++)
 				{
@@ -332,9 +366,7 @@
 							continue;
 						}
 
-						//let current_source = this.source_columns[k].data_feed;
 						let current_source = this.$store.getters[this.source_columns[k].data_getter];
-						//let current_source = this.source_columns[k].data_vuex;
 
 						if (!('joins' in this.source_columns[k]))
 						{
@@ -357,7 +389,7 @@
 							//for each secondary source joins data
 							for (let n = 0; n < this.source_columns[k].joins.length; n++)
 							{
-								//for each stored prvious sources rows
+								//for each stored previous sources rows
 								for (let p = 0; p < source_rows.length; p++)
 								{
 									//match previous source row to be from desired source (tag)
@@ -1027,12 +1059,118 @@
 		},
 
 		methods: {
+			test_trigger: function() {
+				if(this.wait_for_trigger === 1)
+				{
+					for(let i = 0 ; i < this.trigger_data.length ; i++)
+					{
+						if(('data_type' in this.trigger_data[i]))
+						{
+							if(this.trigger_data[i].data_type === 'vuex')
+							{
+								let data_value = this.$store.getters[this.trigger_data[i].data_getter];
+								if(this.trigger_data[i].compare(data_value) === false)
+								{
+									return;
+								}
+							}
+						}
+					}
+				}
+
+				this.$emit('update:wait_for_trigger' , 0);
+				this.reload_data();
+            },
 			sortBy: function (key) {
 				this.sortKey = key;
 				this.sortOrders[key] = this.sortOrders[key] * -1
 			},
 
-			load_data: function () {
+            is_call_active: function(cancel_token_id) {
+
+				for(let i = 0 ; i < this.loading_data_sources.length ; i++)
+                {
+                	if(this.loading_data_sources[i].cancel_token_id === cancel_token_id)
+                    {
+                    	return true;
+                    }
+                }
+
+                return false;
+            },
+
+			reload_data: function() {
+				for(let i = 0 ; i < this.loading_data_sources.length ; i++)
+				{
+					if(this.loading_data_sources[i].loading === 0)
+					{
+						continue;
+					}
+
+					this.$store.state.apicomm.c_tokens[this.loading_data_sources[i].cancel_token_id].cancel();
+				}
+
+				this.load_data(true);
+            },
+
+            fetch_call: function(tag , server_filters , fetch_action)
+            {
+				let cancel_token_id = this.$uuidv1();
+				let call_data = {
+					cancel_token_id: cancel_token_id,
+					data: {
+						index_start: 0,
+						items_count: 0,
+						tag: tag
+					}
+				};
+
+				if (server_filters.length > 0)
+				{
+					call_data.data['server_filters'] = [];
+					for(let i = 0 ; i < server_filters.length ; i++)
+					{
+						call_data.data['server_filters'].push({
+							column: server_filters[i].column,
+							compare: server_filters[i].compare,
+							value: this.$store.getters[server_filters[i].value]
+						});
+					}
+				}
+
+				this.is_loading = true;
+
+				this.loading_data_sources.push({
+					tag: tag,
+					loading: 1,
+					cancel_token_id: cancel_token_id
+				});
+
+				this.$store.dispatch(fetch_action, call_data).then(
+					success_data => {
+
+						if(!this.is_call_active(call_data.cancel_token_id))return;
+
+						this.load_complete(call_data.data.tag);
+						this.check_load_complete();
+					},
+					error_data => {
+
+						if(!this.is_call_active(call_data.cancel_token_id))return;
+
+						this.$swal({
+							type: 'error',
+							title: 'Oops...',
+							text: error_data,
+						});
+
+						this.load_complete(call_data.data.tag);
+						this.check_load_complete();
+					}
+				);
+            },
+
+			load_data: function (reload = false) {
 				let view_sortOrders = {};
 
 				this.view_columns.forEach(function (key) {
@@ -1041,7 +1179,7 @@
 
 				this.sortOrders = view_sortOrders;
 
-				if (this.settings.do_initial_load === true)
+				if (this.settings.do_initial_load === true || reload === true)
 				{
 					this.loading_data_sources = [];
 
@@ -1049,37 +1187,53 @@
 					{
 						if (('fetch_action' in this.source_columns[i]))
 						{
-							let call_data = {
-								index_start: 0,
-								items_count: 0,
-								tag: this.source_columns[i].tag
-							};
+							let server_filters = [];
 
-							this.is_loading = true;
-
-
-							this.loading_data_sources.push({
-								tag: this.source_columns[i].tag,
-								loading: 1
-							});
-
-							this.$store.dispatch(this.source_columns[i].fetch_action, call_data).then(
-								success_data => {
-									this.load_complete(call_data.tag);
-									this.check_load_complete();
-								},
-								error_data => {
-									this.$swal({
-										type: 'error',
-										title: 'Oops...',
-										text: error_data,
+							if (('server_filters' in this.source_columns[i]))
+							{
+								for(let j = 0 ; j < this.source_columns[i].server_filters.length ; j++)
+								{
+									server_filters.push({
+										column: this.source_columns[i].server_filters[j].column,
+										compare: this.source_columns[i].server_filters[j].compare_type,
+										value: this.source_columns[i].server_filters[j].data_getter
 									});
-
-									this.load_complete(call_data.tag);
-									this.check_load_complete();
 								}
-							);
+							}
+
+							this.fetch_call(this.source_columns[i].tag , server_filters , this.source_columns[i].fetch_action)
 						}
+
+						if(('columns' in this.source_columns[i]))
+                        {
+                        	for (let j = 0 ; j < this.source_columns[i].columns.length ; j++)
+                            {
+                            	if(this.source_columns[i].columns[j].type === 'dropdown' && ('data_source' in this.source_columns[i].columns[j]))
+                                {
+                                	if(
+                                		this.source_columns[i].columns[j].data_source.type === 'vuex' &&
+                                        ('fetch_action' in this.source_columns[i].columns[j].data_source)
+                                    )
+                                    {
+										let server_filters = [];
+
+										if (('server_filters' in this.source_columns[i].columns[j].data_source))
+										{
+											for(let k = 0 ; k < this.source_columns[i].columns[j].data_source.server_filters.length ; k++)
+											{
+												server_filters.push({
+													column: this.source_columns[i].columns[j].data_source.server_filters[k].column,
+													compare: this.source_columns[i].columns[j].data_source.server_filters[k].compare_type,
+													value: this.source_columns[i].columns[j].data_source.server_filters[k].data_getter
+												});
+											}
+										}
+
+										this.fetch_call(this.source_columns[i].columns[j].data_source.tag , server_filters , this.source_columns[i].columns[j].data_source.fetch_action)
+                                    }
+                                }
+                            }
+                        }
 					}
 				}
 				else
@@ -1189,7 +1343,6 @@
 					if (result.value)
 					{
 						this.is_loading = true;
-						//console.log('delete action: ' + this.settings.delete_action);
 						this.$store.dispatch(this.settings.delete_action, itemId).then(
 							success_data => {
 								this.is_loading = false;
@@ -1270,8 +1423,10 @@
 				}
 
 				let call_data = {
-					id: itemId,
-					columns: []
+					data: {
+						id: itemId,
+						columns: []
+                    }
 				};
 
 				let has_edited_columns = 0;
@@ -1281,7 +1436,7 @@
 					{
 						if (this.editing_data[itemId][this.view_columns[i].data_column] !== this.data_source[item_index][this.view_columns[i].data_column])
 						{
-							call_data.columns.push({
+							call_data.data.columns.push({
 								column_name: this.view_columns[i].data_column,
 								column_value: this.editing_data[itemId][this.view_columns[i].data_column]
 							});
@@ -1293,7 +1448,6 @@
 				if (has_edited_columns === 1)
 				{
 					this.is_loading = true;
-					//console.log('edit action: ' + this.settings.edit_action);
 					this.$store.dispatch(this.settings.edit_action, call_data).then(
 						success_data => {
 							this.is_loading = false;
@@ -1321,7 +1475,6 @@
 			},
 
 			customAction: function (itemId, action_index) {
-				//console.log('edit action: ' + this.settings.edit_action);
                 if(('action' in this.settings.custom_actions[action_index]))
                 {
 					this.is_loading = true;

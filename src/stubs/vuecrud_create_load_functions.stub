@@ -1,3 +1,16 @@
+            is_call_active: function(cancel_token_id) {
+
+				for(let i = 0 ; i < this.loading_data_sources.length ; i++)
+                {
+                	if(this.loading_data_sources[i].cancel_token_id === cancel_token_id)
+                    {
+                    	return true;
+                    }
+                }
+
+                return false;
+            },
+
 			load_data: function () {
 
 				this.loading_data_sources = [];
@@ -10,33 +23,56 @@
 				{
 					if (('fetch_action' in load_components[i]))
 					{
+						let cancel_token_id = this.$uuidv1();
 						let call_data = {
-							index_start: 0,
-							items_count: 0,
-							tag: load_components[i].tag
+							cancel_token_id: cancel_token_id,
+                            data: {
+								index_start: 0,
+								items_count: 0,
+								tag: load_components[i].tag
+                            }
 						};
+
+						if(('server_filters' in load_components[i]))
+                        {
+							call_data.data['server_filters'] = [];
+							for(let j = 0 ; j < load_components[i].server_filters.length ; j++)
+							{
+								call_data.data['server_filters'].push({
+									column: load_components[i].server_filters[j].column,
+									compare: load_components[i].server_filters[j].compare_type,
+									value: this.$store.getters[load_components[i].server_filters[j].data_getter]
+								});
+							}
+                        }
 
 						this.is_loading = true;
 
-
 						this.loading_data_sources.push({
 							tag: load_components[i].tag,
-							loading: 1
+							loading: 1,
+							cancel_token_id: cancel_token_id
 						});
 
 						this.$store.dispatch(load_components[i].fetch_action, call_data).then(
 							success_data => {
-								this.load_complete(call_data.tag);
+
+								if(!this.is_call_active(call_data.cancel_token_id))return;
+
+								this.load_complete(call_data.data.tag);
 								this.check_load_complete();
 							},
 							error_data => {
+
+								if(!this.is_call_active(call_data.cancel_token_id))return;
+
 								this.$swal({
 									type: 'error',
 									title: 'Oops...',
 									text: error_data,
 								});
 
-								this.load_complete(call_data.tag);
+								this.load_complete(call_data.data.tag);
 								this.check_load_complete();
 							}
 						);
@@ -72,5 +108,17 @@
 				if (in_progress === 0)
 				{
 					this.is_loading = false;
+				}
+			},
+
+			cancelLoadingSources: function() {
+				for(let i = 0 ; i < this.loading_data_sources.length ; i++)
+				{
+					if(this.loading_data_sources[i].loading === 0)
+					{
+						continue;
+					}
+
+					this.$store.state.apicomm.c_tokens[this.loading_data_sources[i].cancel_token_id].cancel();
 				}
 			},

@@ -1,6 +1,8 @@
 const namespaced = true;
 
-const state = {};
+const state = {
+	c_tokens: {},
+};
 
 const getters = {};
 
@@ -11,11 +13,32 @@ const actions = {
 		return new Promise((resolve, reject) => {
 			let payload = {
 				units: [
-					call_data,
+					call_data.data,
 				]
 			};
 
-			axios.post(call_data.api_route, payload).then(
+			let cancel_object = {};
+			let has_cancel = false;
+
+			if(('cancel_token_id' in call_data) && call_data.cancel_token_id.trim() !== '')
+			{
+				const CancelToken = axios.CancelToken;
+				let cancel_source = CancelToken.source();
+
+				let commit_object = {
+					cancel_token_id: call_data.cancel_token_id,
+					cancel_source: cancel_source
+				};
+				context.commit('saveCancelToken', commit_object);
+
+				cancel_object = {
+					cancelToken: cancel_source.token
+				};
+
+				has_cancel = true;
+			}
+
+			axios.post(call_data.data.api_route, payload , cancel_object).then(
 				(response) => {
 					if(('status' in response.data) && response.data.status === 'OK')
 					{
@@ -47,8 +70,10 @@ const actions = {
 					{
 						reject('Unknown failure in API call');
 					}
-				},
-				(error) => {
+				}
+			).catch(function (error) {
+				if(error)
+				{
 					if(('permission_fail' in error.data) && error.data.permission_fail === true)
 					{
 						reject('Permission failure: ' + error.data.reason);
@@ -58,12 +83,25 @@ const actions = {
 						reject('API call has failed');
 					}
 				}
-			);
+			}).finally( function () {
+				if(has_cancel)
+				{
+					context.commit('removeCancelToken', call_data.cancel_token_id);
+				}
+			});
 		});
 	}
 };
 
-const mutations = {};
+const mutations = {
+	saveCancelToken(state, cancel_object) {
+		state.c_tokens[cancel_object.cancel_token_id] = cancel_object.cancel_source;
+	},
+	removeCancelToken(state, cancel__token_id) {
+		delete(state.c_tokens[cancel__token_id]);
+	}
+
+};
 
 export default {
 	namespaced,

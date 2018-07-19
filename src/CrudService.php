@@ -7,7 +7,8 @@ use App\Plant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Input;
-
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 class CrudService
 {
 	public static $service_name = 'default';
@@ -71,7 +72,7 @@ class CrudService
 		$table_config = $table_detail->GetConfig();
 
 		$fields = array();
-		foreach($table_config as $field_name => $field_data)
+		foreach($table_config['fields'] as $field_name => $field_data)
 		{
 			if($field_data['hidden'] === true)
 			{
@@ -83,7 +84,30 @@ class CrudService
 
 		try
 		{
-			$items = $my_model::all($fields)->toArray();
+			if(isset($data['server_filters']))
+			{
+				$filters = [];
+				foreach($data['server_filters'] as $server_filter)
+				{
+					$filters[] = [
+						$server_filter['column'],
+						$server_filter['compare'],
+						$server_filter['value']
+					];
+				}
+
+				$filtered_items = $my_model::where($filters)->get();
+
+				$items = [];
+				foreach($filtered_items as $filtered_item)
+				{
+					$items[] = $filtered_item->only($fields);
+				}
+			}
+			else
+			{
+				$items = $my_model::all($fields)->toArray();
+			}
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -111,8 +135,13 @@ class CrudService
 		$table_config = $table_detail->GetConfig();
 
 		$required_fields = array();
-		foreach($table_config as $field_name => $field_data)
+		$generate_calls = array();
+		foreach($table_config['fields'] as $field_name => $field_data)
 		{
+			if($field_data['generate'] != '')
+			{
+				$generate_calls[$field_name] = $field_data['generate'];
+			}
 			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['nullable'] === true)
 			{
 				continue;
@@ -123,7 +152,7 @@ class CrudService
 
 		foreach ($required_fields as $required_field)
 		{
-			if (!isset($data[$required_field]))
+			if (!isset($data[$required_field]) && !isset($generate_calls[$required_field]))
 			{
 				$response = [
 					'status' => 'FAILED',
@@ -135,7 +164,7 @@ class CrudService
 
 
 		$trim_fields = array();
-		foreach($table_config as $field_name => $field_data)
+		foreach($table_config['fields'] as $field_name => $field_data)
 		{
 			if($field_data['trim'] !== true)
 			{
@@ -200,6 +229,10 @@ class CrudService
 			foreach ($data as $field_name => $field_value)
 			{
 				$item->$field_name = $field_value;
+			}
+			foreach($generate_calls as $generate_call)
+			{
+				static::$generate_call($item);
 			}
 			$item->save();
 		} catch (\Exception $e)

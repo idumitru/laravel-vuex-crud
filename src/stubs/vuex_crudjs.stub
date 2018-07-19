@@ -10,11 +10,14 @@ function generateCreateItem(api_route, service, tag)
 
 			let unit_name = tag + 'CreateItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
-				unit: unit_name,
-				api_route: api_route,
-				service: service,
-				data: item_data,
-				method: 'CreateItem'
+				cancel_token_id: (('cancel_token_id' in item_data) && item_data.cancel_token_id.trim() !== '')?item_data.cancel_token_id:'',
+				data: {
+					unit: unit_name,
+					api_route: api_route,
+					service: service,
+					data: item_data.data,
+					method: 'CreateItem'
+				}
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -52,16 +55,19 @@ function generateCreateItem(api_route, service, tag)
 
 function generateFetchItems(api_route, service, tag)
 {
-	return function (context, items) {
+	return function (context, items_data) {
 		return new Promise((success, failed) => {
 
 			let unit_name = tag + 'FetchItems' + randomIntFromInterval(1000, 100000);
 			let call_data = {
-				unit: unit_name,
-				api_route: api_route,
-				service: service,
-				data: items,
-				method: 'FetchItems',
+				cancel_token_id: (('cancel_token_id' in items_data) && items_data.cancel_token_id.trim() !== '')?items_data.cancel_token_id:'',
+				data: {
+					unit: unit_name,
+					api_route: api_route,
+					service: service,
+					data: items_data.data,
+					method: 'FetchItems',
+				}
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -98,16 +104,19 @@ function generateFetchItems(api_route, service, tag)
 
 function generateDeleteItem(api_route, service, tag)
 {
-	return function (context, item_id) {
+	return function (context, item_data) {
 		return new Promise((success, failed) => {
 
 			let unit_name = tag + 'DeleteItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
-				unit: unit_name,
-				api_route: api_route,
-				service: service,
-				data: item_id,
-				method: 'DeleteItem',
+				cancel_token_id: (('cancel_token_id' in item_data) && item_data.cancel_token_id.trim() !== '')?item_data.cancel_token_id:'',
+				data: {
+					unit: unit_name,
+					api_route: api_route,
+					service: service,
+					data: item_data.data,
+					method: 'DeleteItem',
+				}
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(
@@ -149,11 +158,14 @@ function generateEditItem(api_route, service, tag)
 
 			let unit_name = tag + 'EditItem' + randomIntFromInterval(1000, 100000);
 			let call_data = {
-				unit: unit_name,
-				api_route: api_route,
-				service: service,
-				data: edit_data,
-				method: 'EditItem',
+				cancel_token_id: (('cancel_token_id' in edit_data) && edit_data.cancel_token_id.trim() !== '')?edit_data.cancel_token_id:'',
+				data: {
+					unit: unit_name,
+					api_route: api_route,
+					service: service,
+					data: edit_data.data,
+					method: 'EditItem',
+				}
 			};
 
 			context.dispatch('apicomm/callApi', call_data, {root: true}).then(

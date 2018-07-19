@@ -11,7 +11,7 @@
 					</li>
                 </ul>
             </div>
-        	<router-view></router-view>
+        	<router-view class="col-md-11"></router-view>
         </div>
     </div>
 </template>

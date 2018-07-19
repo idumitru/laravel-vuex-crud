@@ -92,6 +92,11 @@ class CrudLaravelCrudServiceCommand extends Command
 			return $this->error($path . ' already exists!');
 		}
 
+		$section_data = app()['config']["vuexcrud.sections." . $this->crud_section];
+		$filter_column = trim($section_data['filter_column']);
+		$filter_vuex_source = trim($section_data['filter_vuex_source']);
+		$filter_vuex_compare = trim($section_data['filter_vuex_compare']);
+
 		$model_item = new $this->my_model_name();
 
 		$table = $model_item->getTable();
@@ -132,11 +137,18 @@ class CrudLaravelCrudServiceCommand extends Command
 			$nullable = '';
 			$unique = '';
 			$default = '';
+			$filter = '';
 
 			$field_type = strtolower($field_data['Type']);
 			$key_type = strtolower($field_data['Key']);
 
-			if (
+			if($filter_column != '' && $field_data['Field'] == $filter_column)
+			{
+				$filter = '->filter( "' . $filter_vuex_compare . '", "' . $filter_vuex_source . '")';
+				$hide = '->hide()';
+				$type = '';
+			}
+			else if (
 				$field_data['Field'] == 'created_at' ||
 				$field_data['Field'] == 'updated_at'
 			)
@@ -194,14 +206,14 @@ class CrudLaravelCrudServiceCommand extends Command
 				}
 				if($found_type == 0)
 				{
-					if(strpos($field_type , 'date') !== false)
-					{
-						$type = '->type_date()';
-						$found_type = 1;
-					}
-					else if(strpos($field_type , 'datetime') !== false)
+					if(strpos($field_type , 'datetime') !== false)
 					{
 						$type = '->type_datetime()';
+						$found_type = 1;
+					}
+					else if(strpos($field_type , 'date') !== false)
+					{
+						$type = '->type_date()';
 						$found_type = 1;
 					}
 					else if(strpos($field_type , 'timestamp') !== false)
@@ -229,7 +241,7 @@ class CrudLaravelCrudServiceCommand extends Command
 				}
 			}
 
-			$output .= $indent . '$table->field("' . $field_data['Field'] . '")' . $primary . $hide . $type . $nullable . $unique . $default . ";\n";
+			$output .= $indent . '$table->field("' . $field_data['Field'] . '")' . $primary . $filter . $hide . $type . $nullable . $unique . $default . ";\n";
 		}
 
 		$this->table_detail = $output;

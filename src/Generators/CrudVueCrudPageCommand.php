@@ -111,7 +111,7 @@ class CrudVueCrudPageCommand extends Command
 		$table_detail = $table_detail_class::GetCrudTableDetails();
 
 		$this->table_config = $table_detail->GetConfig();
-		if(count($this->table_config) == 0)
+		if(count($this->table_config['fields']) == 0)
 		{
 			return $this->error('Unable to generate table configuration from crud service  ' . $this->my_service_name .  ' (' . $table_detail_class . '::GetCrudTableDetails()->GetConfig())');
 		}
@@ -183,24 +183,200 @@ class CrudVueCrudPageCommand extends Command
 		$stub = str_replace('{{page}}', $this->my_page_name, $stub);
 		$stub = str_replace('{{item}}', $singular_item_name, $stub);
 
-		$columns = '';
-		foreach($this->table_config as $field_name => $field_data)
+		$reload_component = '';
+		$reload_var = '';
+		$reload_computed = '';
+		$reload_watch = '';
+		$reload_prepare = '';
+		$trigger_component = '';
+		$trigger_var = '';
+		if($this->table_config['table']['filter_change_update'] === true)
 		{
+			$reload_component = '                     :reload_monitor.sync="reload_monitor"' . "\n";
+			$reload_var = '				reload_monitor: {},' . "\n";
+
+			$reload_prepare = '				this.reload_monitor = {' . "\n";
+
+			foreach($this->table_config['table']['filter_change_update_vars'] as $filter_change_update_var)
+			{
+				$reload_computed = '			' . $filter_change_update_var['tag'] . ': function () {
+				return this.$store.getters[\'' . $filter_change_update_var['getter'] . '\'];
+			},' . "\n";
+				$reload_watch = '			' . $filter_change_update_var['tag'] . ': function (val) {
+				this.reload_monitor[\'' . $filter_change_update_var['tag'] . '\'] = val;
+				this.reload_monitor = JSON.parse(JSON.stringify(this.reload_monitor));
+			},' . "\n";
+
+				$reload_prepare .= '					' . $filter_change_update_var['tag'] . ': this.' . $filter_change_update_var['tag'] . ',' . "\n";
+			}
+
+			$reload_prepare .= '				};' . "\n";
+		}
+		
+		if($this->table_config['table']['has_trigger_filter'] === true)
+		{
+			$trigger_component = '                     :wait_for_trigger=1
+                     :trigger_data="trigger_data"' . "\n";
+
+			$trigger_var = '				trigger_data: [' . "\n";
+			foreach($this->table_config['table']['triger_filters'] as $trigger_filter)
+			{
+				$trigger_var .= '					{
+						data_type: \'' . $trigger_filter['type'] . '\',
+						compare: ' . $trigger_filter['compare'] . ',
+						data_getter: \'' . $trigger_filter['data_getter'] . '\'
+					},' . "\n";
+			}
+			$trigger_var .= '				],' . "\n";
+		}
+		
+		$columns = '';
+		$filters = '';
+		foreach($this->table_config['fields'] as $field_name => $field_data)
+		{
+			if($field_data['is_filter'] === true)
+			{
+				$filters .= '                            {
+								column: \'' . $field_name . '\',
+								compare_type: \'' . $field_data['filter_compare'] . '\',
+								data_getter: \'' . $field_data['filter_source'] . '\'
+                            }
+';
+			}
+
 			if($field_data['primary'] === true || $field_data['hidden'] === true)
 			{
 				continue;
 			}
 
 			$nice_field_name = ucwords(str_replace('_' , ' ' , $field_name));
-			$columns .='							{
+			if($field_data['has_relation'] === true)
+			{
+				$vuex_module = $field_data['relation']['vuex_module'];
+				$relation_column = $field_data['relation']['match_column'];
+				$relation_value = $field_data['relation']['match_value'];
+
+				$relation_server_filters = '';
+				if($field_data['with_filters'] != '')
+				{
+					$config_filters = false;
+					$relation_class = '';
+
+					if(@class_exists($field_data['with_filters']))
+					{
+						$relation_class = $field_data['with_filters'];
+						$config_filters = true;
+					}
+					else
+					{
+						$relation_class_namespace = '\\' . app()['config']["vuexcrud.sections." .  $this->crud_section]['crudservice_namespace'] . '\\' . $field_data['with_filters'];
+						if(@class_exists($relation_class_namespace))
+						{
+							$relation_class = $relation_class_namespace;
+							$config_filters = true;
+						}
+
+					}
+					if ($config_filters === true)
+					{
+						$relation_table_detail = $relation_class::GetCrudTableDetails();
+						$relation_config = $relation_table_detail->GetConfig();
+						foreach($relation_config['fields'] as $relation_field_name => $relation_field_data)
+						{
+							if ($relation_field_data['is_filter'] === true)
+							{
+								$relation_server_filters .= '                            {
+								column: \'' . $relation_field_name . '\',
+								compare_type: \'' . $relation_field_data['filter_compare'] . '\',
+								data_getter: \'' . $relation_field_data['filter_source'] . '\'
+                            }
+';
+							}
+						}
+
+						if($relation_server_filters != '')
+						{
+							$relation_server_filters =
+								'                        server_filters: [' . "\n" .
+								$relation_server_filters .
+								'                        ],' . "\n";
+						}
+
+					}
+					else
+					{
+						$this->info("Could not load relation configuration for crud service " . $field_data['with_filters'] . ". Perhaps you need to specify full namespace path");
+					}
+				}
+
+				$columns .='							{
+								grid_column: \'' . $nice_field_name . '\',
+								data_column: \'' . $field_name . '\',
+								editable: true,
+								type: \'dropdown\',
+								data_source: {
+									type: \'vuex\',
+                                    tag: \'' . $field_name . '_' . $vuex_module . '\',
+									data_getter: \'' . $vuex_module . '/' . $vuex_module . 'GetItems\',
+                                    fetch_action: \'' . $vuex_module . '/' . $vuex_module . 'FetchItems\',
+                                    match_field: \'' . $relation_column . '\',
+                                    match_value: \'' . $relation_value . '\','.
+					$relation_server_filters .'
+								}
+							},' . "\n";
+			}
+			else if($field_data['is_dropdown'] === true && count($field_data['dropdown_options']) > 0)
+			{
+				$field_options = '';
+				foreach($field_data['dropdown_options'] as $dropdown_option)
+				{
+					$field_options .= '										{
+											data_value: ' . (is_string($dropdown_option['value'])?"'" . $dropdown_option['value'] .  "'":$dropdown_option['value']) . ',
+											label: \'' . $dropdown_option['display'] . '\'
+										},' . "\n";
+				}
+				$columns .='							{
+								grid_column: \'' . $nice_field_name . '\',
+								data_column: \'' . $field_name . '\',
+								editable: true,
+								type: \'dropdown\',
+								data_source: {
+									type: \'provided\',
+									options: ['.
+					$field_options . '
+									]
+								}
+							},' . "\n";
+			}
+			else
+			{
+				$columns .='							{
 								grid_column: \'' . $nice_field_name . '\',
 								data_column: \'' . $field_name . '\',
 								editable: true,
 								type: \'editbox\'
-							},
-';
+							},' . "\n";
+			}
 		}
 
+		if($filters != '')
+		{
+			$filters =
+				'                        server_filters: [' . "\n" .
+				$filters .
+				'                        ],' . "\n";
+		}
+
+		$stub = str_replace('{{reload_component}}', $reload_component, $stub);
+		$stub = str_replace('{{reload_var}}', $reload_var, $stub);
+		$stub = str_replace('{{reload_computed}}', $reload_computed, $stub);
+		$stub = str_replace('{{reload_watch}}', $reload_watch, $stub);
+		$stub = str_replace('{{reload_prepare}}', $reload_prepare, $stub);
+
+		$stub = str_replace('{{trigger_component}}', $trigger_component, $stub);
+		$stub = str_replace('{{trigger_var}}', $trigger_var, $stub);
+
+		$stub = str_replace('{{filters}}', $filters, $stub);
 		$stub = str_replace('{{columns}}', $columns, $stub);
 
 		return $stub;
@@ -223,9 +399,10 @@ class CrudVueCrudPageCommand extends Command
 		$load_settings_calls = '';
 		$load_settings_functions = '';
 		$settings_vars = '';
-		foreach($this->table_config as $field_name => $field_data)
+		$destroy_calls = '';
+		foreach($this->table_config['fields'] as $field_name => $field_data)
 		{
-			if($field_data['primary'] === true || $field_data['hidden'] === true)
+			if($field_data['is_filter'] === false && ($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['hide_for_create'] === true))
 			{
 				continue;
 			}
@@ -239,46 +416,58 @@ class CrudVueCrudPageCommand extends Command
 			$uc_field = ucwords($field_name);
 			$nice_field_name = ucwords(str_replace('_' , ' ' , $field_name));
 
-			if($field_data['has_relation'] === true)
+			if($field_data['is_filter'] === false)
 			{
-				$enable_load_data = true;
-				$vuex_module = $field_data['relation']['vuex_module'];
-				$relation_column = $field_data['relation']['match_column'];
-				$relation_value = $field_data['relation']['match_value'];
-				$nice_relation_name = ucwords(str_replace('_' , ' ' , $vuex_module));
-				$singular_relation_name = str_singular($nice_relation_name);
-
-				if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
+				if($field_data['has_relation'] === true)
 				{
-					$input_item ='                <label for="' . $uc_field . '">' . $nice_field_name . '</label>
-                <select
-                        id="' . $uc_field . '"
-                        class="form-control"
-                        v-model="new_' . $field_name . '"
-                >
-                    <option value="0">[Select ' . $singular_relation_name . ']</option>
-                    <option v-for="item in $store.state.' . $vuex_module . '.' . $vuex_module . '"
-                            :value="item.' . $relation_column . '">{{item.' . $relation_value . '}}
-                    </option>
-                </select>' . "\n";
-				}
-				elseif ($field_data['field_type'] == 'smart_input')
-				{
-					$input_item ='                <label for="' . $uc_field . '">' . $nice_field_name . '</label>
-                <SmartInput
-                        info_name="' . $singular_relation_name . '"
-                        mode="vuex"
-                        :settings="' . $field_name . '_settings"
-                        :settings_ready.sync="' . $field_name . '_settings_ready"
-                        label="' . $relation_value . '"
-                        v-model="new_' . $field_name . '"
-                ></SmartInput>' . "\n";
+					$enable_load_data = true;
+					$vuex_module = $field_data['relation']['vuex_module'];
+					$relation_column = $field_data['relation']['match_column'];
+					$relation_value = $field_data['relation']['match_value'];
+					$nice_relation_name = ucwords(str_replace('_' , ' ' , $vuex_module));
+					$singular_relation_name = str_singular($nice_relation_name);
 
-					$settings_vars .= '                ' . $field_name . '_settings: {},';
-					$settings_vars .= '                ' . $field_name . '_settings_ready: false,';
+					if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
+					{
+						$v_model = 'v-model';
+						if($field_data['field_type'] == 'number')
+						{
+							$v_model = 'v-model.number';
+						}
+						$input_item ='                <div>
+                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
+                    <select
+                            id="' . $uc_field . '"
+                            class="form-control"
+                            ' . $v_model . '="new_' . $field_name . '"
+                    >
+                        <option value="0">[Select ' . $singular_relation_name . ']</option>
+                        <option v-for="item in $store.state.' . $vuex_module . '.' . $vuex_module . '"
+                                :value="item.' . $relation_column . '">{{item.' . $relation_value . '}}
+                        </option>
+                    </select>
+                </div>' . "\n";
+					}
+					elseif ($field_data['field_type'] == 'smart_input')
+					{
+						$input_item ='                <div>
+                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
+                    <SmartInput
+                            id="' . $uc_field . '"
+                            info_name="' . $singular_relation_name . '"
+                            mode="vuex"
+                            :settings="' . $field_name . '_settings"
+                            :settings_ready.sync="' . $field_name . '_settings_ready"
+                            label="' . $relation_value . '"
+                            v-model="new_' . $field_name . '"
+                    ></SmartInput>
+				</div>' . "\n";
 
-					$load_settings_calls .= '            this.prepare_' . $field_name . '_settings();';
-					$load_settings_functions .= '            prepare_' . $field_name . '_settings: function()
+						$settings_vars .= '                ' . $field_name . '_settings: {},';
+						$settings_vars .= '                ' . $field_name . '_settings_ready: false,';
+
+						$load_settings_calls .= '            this.prepare_' . $field_name . '_settings();';
+						$load_settings_functions .= '            prepare_' . $field_name . '_settings: function()
             {
                 this.' . $field_name . '_settings = {
                     vuex_src: \'' . $vuex_module . '/' . $vuex_module . 'GetItems\',
@@ -292,17 +481,17 @@ class CrudVueCrudPageCommand extends Command
                 };
                 this.' . $field_name . '_settings_ready = true;
             },' . "\n";
-				}
-				else
-				{
-					$input_item ='                <label for="' . $uc_field . '">' . $nice_field_name . '</label>' . "\n";
-				}
+					}
+					else
+					{
+						$input_item ='                <div><label for="' . $uc_field . '">' . $nice_field_name . '</label></div>' . "\n";
+					}
 
-				$field_variable = '				new_' . $field_name . ': 0,' . "\n";
-				$reset_item = '						this.new_' . $field_name . ' = 0;' . "\n";
-				if($field_data['can_be_0'] === false)
-				{
-					$warning_item = '				if (this.new_' . $field_name . ' === 0)
+					$field_variable = '				new_' . $field_name . ': 0,' . "\n";
+					$reset_item = '						this.new_' . $field_name . ' = 0;' . "\n";
+					if($field_data['can_be_0'] === false)
+					{
+						$warning_item = '				if (this.new_' . $field_name . ' === 0)
 				{
 					this.$swal({
 						type: \'error\',
@@ -312,56 +501,125 @@ class CrudVueCrudPageCommand extends Command
 
 					return;
 				}' . "\n";
-				}
+					}
 
-				$load_components .= '                    {
+					$server_filters = '';
+					if($field_data['with_filters'] != '')
+					{
+						$config_filters = false;
+						$relation_class = '';
+
+						if(@class_exists($field_data['with_filters']))
+						{
+							$relation_class = $field_data['with_filters'];
+							$config_filters = true;
+						}
+						else
+						{
+							$relation_class_namespace = '\\' . app()['config']["vuexcrud.sections." .  $this->crud_section]['crudservice_namespace'] . '\\' . $field_data['with_filters'];
+							if(@class_exists($relation_class_namespace))
+							{
+								$relation_class = $relation_class_namespace;
+								$config_filters = true;
+							}
+
+						}
+						if ($config_filters === true)
+						{
+							$relation_table_detail = $relation_class::GetCrudTableDetails();
+							$relation_config = $relation_table_detail->GetConfig();
+							foreach($relation_config['fields'] as $relation_field_name => $relation_field_data)
+							{
+								if ($relation_field_data['is_filter'] === true)
+								{
+									$server_filters .= '                            {
+								column: \'' . $relation_field_name . '\',
+								compare_type: \'' . $relation_field_data['filter_compare'] . '\',
+								data_getter: \'' . $relation_field_data['filter_source'] . '\'
+                            }
+';
+								}
+							}
+
+							if($server_filters != '')
+							{
+								$server_filters =
+									'                        server_filters: [' . "\n" .
+									$server_filters .
+									'                        ],' . "\n";
+							}
+
+						}
+						else
+						{
+							$this->info("Could not load relation configuration for crud service " . $field_data['with_filters'] . ". Perhaps you need to specify full namespace path");
+						}
+					}
+					$load_components .= '                    {
 						tag: \''. $vuex_module . '\',
 						fetch_action: \''. $vuex_module . '/'. $vuex_module . 'FetchItems\',
+' . $server_filters . '
                     },' . "\n";
-			}
-			else if($field_data['is_dropdown'] === true)
-			{
-				$input_item ='                <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
-                <select
-                        id="new_' . $field_name . '"
-                        class="form-control"
-                        v-model="new_' . $field_name . '"
-                >' . "\n";
-
-				$first_option = false;
-				foreach ($field_data['dropdown_options'] as $dropdown_option)
-				{
-					if($first_option === false)
-					{
-						$first_option = $dropdown_option;
-					}
-					$input_item .= '                    <option value="' . $dropdown_option['value'] .'">' . $dropdown_option['display'] .'</option>' . "\n";
+					$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
 				}
-
-
-				$input_item .= '                </select>' . "\n";
-
-				$field_variable = '				new_' . $field_name . ': ' . $first_option['value'] . ',' . "\n";
-				$reset_item = '						this.new_' . $field_name . ' = ' . $first_option['value'] . ';' . "\n";
-			}
-			else
-			{
-				if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
+				else if($field_data['is_dropdown'] === true)
 				{
-					$input_item ='                <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
-                <input
-                        type="text"
-                        class="form-control"
-                        id="new_' . $field_name . '"
-                        placeholder="Enter ' . $nice_field_name . '"
-                        v-model="new_' . $field_name . '"
-                >' . "\n";
-
-					$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
-					$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
-					if($field_data['nullable'] === false)
+					$v_model = 'v-model';
+					if($field_data['field_type'] == 'number')
 					{
-						$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
+						$v_model = 'v-model.number';
+					}
+					$input_item ='                <div>
+                    <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
+                    <select
+                            id="new_' . $field_name . '"
+                            class="form-control"
+                            ' . $v_model . '="new_' . $field_name . '"
+                    >' . "\n";
+
+					$first_option = false;
+					foreach ($field_data['dropdown_options'] as $dropdown_option)
+					{
+						if($first_option === false)
+						{
+							$first_option = $dropdown_option;
+						}
+						$input_item .= '                    <option value="' . $dropdown_option['value'] .'">' . $dropdown_option['display'] .'</option>' . "\n";
+					}
+
+
+					$input_item .= '                    </select>
+                </div>' . "\n";
+
+					$field_variable = '				new_' . $field_name . ': ' . $first_option['value'] . ',' . "\n";
+					$reset_item = '						this.new_' . $field_name . ' = ' . $first_option['value'] . ';' . "\n";
+					$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
+				}
+				else
+				{
+					if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
+					{
+						$input_type = 'text';
+						if($field_data['field_type'] == 'number')
+						{
+							$input_type = 'number';
+						}
+						$input_item ='                <div>
+                    <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
+                    <input
+                            type="' . $input_type . '"
+                            class="form-control"
+                            id="new_' . $field_name . '"
+                            placeholder="Enter ' . $nice_field_name . '"
+                            v-model="new_' . $field_name . '"
+                    >
+                </div>' . "\n";
+
+						$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
+						$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
+						if($field_data['nullable'] === false)
+						{
+							$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
 				{
 					this.$swal({
 						type: \'error\',
@@ -371,25 +629,27 @@ class CrudVueCrudPageCommand extends Command
 
 					return;
 				}' . "\n";
+						}
+						$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
 					}
-				}
-				else if($field_data['field_type'] == 'date')
-				{
-					$input_item ='                <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
-                <date-picker 
-                        class="form-control"
-                        id="new_' . $field_name . '"
-                        v-model="new_' . $field_name . '" 
-                        lang="en"
-                        format="YYYY-MM-DD"
-                        confirm
-                ></date-picker>' . "\n";
-
-					$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
-					$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
-					if($field_data['nullable'] === false)
+					else if($field_data['field_type'] == 'date')
 					{
-						$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
+						$input_item ='                <div>
+	                <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
+	                <date-picker 
+	                        id="new_' . $field_name . '"
+	                        v-model="new_' . $field_name . '" 
+	                        lang="en"
+	                        format="YYYY-MM-DD"
+	                        confirm
+	                ></date-picker>
+                </div>' . "\n";
+
+						$field_variable = '				new_' . $field_name . ': this.$moment().format(\'YYYY-MM-DD\'),' . "\n";
+						$reset_item = '						this.new_' . $field_name . ' = this.$moment().format(\'YYYY-MM-DD\');' . "\n";
+						if($field_data['nullable'] === false)
+						{
+							$warning_item = '				if (this.new_' . $field_name . ' === \'\')
 				{
 					this.$swal({
 						type: \'error\',
@@ -400,26 +660,28 @@ class CrudVueCrudPageCommand extends Command
 					return;
 				}
 ';
+						}
+						$call_item = '					    ' . $field_name . ': this.$moment(this.new_' . $field_name . ').format(\'YYYY-MM-DD\'),' . "\n";
 					}
-				}
-				else if($field_data['field_type'] == 'datetime')
-				{
-					$input_item ='                <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
-                <date-picker 
-                        class="form-control"
-                        v-model="new_' . $field_name . '" 
-                        id="new_' . $field_name . '"
-                        type="datetime"
-                        lang="en"
-                        format="YYYY-MM-DD hh:mm:ss"
-                        confirm
-                ></date-picker>' . "\n";
-
-					$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
-					$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
-					if($field_data['nullable'] === false)
+					else if($field_data['field_type'] == 'datetime')
 					{
-						$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
+						$input_item ='                <div>
+                    <label for="new_' . $field_name . '">' . $nice_field_name . '</label>
+                    <date-picker 
+                            v-model="new_' . $field_name . '" 
+                            id="new_' . $field_name . '"
+                            type="datetime"
+                            lang="en"
+                            format="YYYY-MM-DD hh:mm:ss"
+                            confirm
+                    ></date-picker>
+                </div>' . "\n";
+
+						$field_variable = '				new_' . $field_name . ': this.$moment().format(\'YYYY-MM-DD hh:mm:ss\'),' . "\n";
+						$reset_item = '						this.new_' . $field_name . ' = this.$moment().format(\'YYYY-MM-DD hh:mm:ss\');' . "\n";
+						if($field_data['nullable'] === false)
+						{
+							$warning_item = '				if (this.new_' . $field_name . ' === \'\')
 				{
 					this.$swal({
 						type: \'error\',
@@ -430,22 +692,25 @@ class CrudVueCrudPageCommand extends Command
 					return;
 				}
 ';
+						}
+						$call_item = '					    ' . $field_name . ': this.$moment(this.new_' . $field_name . ').format(\'YYYY-MM-DD\'),' . "\n";
 					}
-				}
-				else if($field_data['field_type'] == 'text')
-				{
-					$input_item ='                <label for="' . $field_name . '">' . $uc_field . '</label>
-                <textarea 
-                        class="form-control" 
-                        v-model="new_' . $field_name . '"
-                        id="new_' . $field_name . '"
-                ></textarea>' . "\n";
-
-					$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
-					$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
-					if($field_data['nullable'] === false)
+					else if($field_data['field_type'] == 'text')
 					{
-						$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
+						$input_item ='                <div>
+                    <label for="' . $field_name . '">' . $uc_field . '</label>
+                    <textarea 
+                            class="form-control" 
+                            v-model="new_' . $field_name . '"
+                            id="new_' . $field_name . '"
+                    ></textarea>
+                </div>' . "\n";
+
+						$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
+						$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
+						if($field_data['nullable'] === false)
+						{
+							$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
 				{
 					this.$swal({
 						type: \'error\',
@@ -456,11 +721,15 @@ class CrudVueCrudPageCommand extends Command
 					return;
 				}
 ';
+						}
+						$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
 					}
 				}
 			}
-
-			$call_item = '					' . $field_name . ': this.new_' . $field_name . ',' . "\n";
+			else
+			{
+				$call_item = '					    ' . $field_name . ': this.$store.getters[\'' . $field_data['filter_source'] . '\'],' . "\n";
+			}
 
 
 			$inputs .= $input_item;
@@ -479,6 +748,8 @@ class CrudVueCrudPageCommand extends Command
 			$load_functions_stub = str_replace('{{load_components}}', $load_components, $load_functions_stub);
 
 			$stub = str_replace('{{loading_functions}}', $load_functions_stub, $stub);
+
+			$destroy_calls = '		    this.cancelLoadingSources();' . "\n";
 		}
 		else
 		{
@@ -497,6 +768,7 @@ class CrudVueCrudPageCommand extends Command
 		$stub = str_replace('{{settings_calls}}', $load_settings_calls, $stub);
 		$stub = str_replace('{{settings_vars}}', $settings_vars, $stub);
 		$stub = str_replace('{{settings_functions}}', $load_settings_functions, $stub);
+		$stub = str_replace('{{destroy_calls}}', $destroy_calls, $stub);
 
 		return $stub;
 	}

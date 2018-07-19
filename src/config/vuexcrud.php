@@ -35,6 +35,9 @@ return [
 			'inject_vue_route' => 1,
 			'inject_vue_nav' => 1,
 			'inject_routes' => 1,
+			'filter_column' => '',
+			'filter_vuex_compare' => '=',
+			'filter_vuex_source' => ''
 		],
 
 		/*

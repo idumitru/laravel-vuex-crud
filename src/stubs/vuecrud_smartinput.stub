@@ -260,9 +260,11 @@
 					if (('fetch_action' in load_components[i]))
 					{
 						let call_data = {
-							index_start: 0,
-							items_count: 0,
-							tag: load_components[i].tag
+							data: {
+								index_start: 0,
+								items_count: 0,
+								tag: load_components[i].tag
+                            }
 						};
 
 						this.is_loading = true;

@@ -50,7 +50,9 @@ required npm:
 npm install es6-promise --save-dev
 npm install vue-sweetalert2 --save-dev
 npm install vue2-datepicker --save-dev
-npm install vue-select --save-dev
+//npm install vue-select --save-dev
+npm install uuid --save-dev
+npm install vue-moment --save-dev
 
 Commands:
 

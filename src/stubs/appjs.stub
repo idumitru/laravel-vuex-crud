@@ -14,15 +14,14 @@ import BootstrapVue from 'bootstrap-vue';
 import AppRouter from './{{app_router}}.vue';
 import VueSweetalert2 from 'vue-sweetalert2';
 import DatePicker from 'vue2-datepicker';
-import vSelect  from 'vue-select';
+
+const uuidv1 = require('uuid/v1');
 
 Vue.use(Vuex);
 Vue.use(VueRouter);
 Vue.use(BootstrapVue);
 Vue.use(VueSweetalert2);
 Vue.use(DatePicker);
-
-Vue.component("v-select", vSelect);
 
 import {{routes_name}} from './{{routes_name}}'
 import store from './store'
