@@ -1,0 +1,5 @@
+{
+    column: '{{server_filters_item_column}}',
+    compare_type: '{{server_filters_item_compare_type}}',
+    data_getter: '{{server_filters_item_data_getter}}'
+},

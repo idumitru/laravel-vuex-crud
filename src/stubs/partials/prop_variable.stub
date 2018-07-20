@@ -1,0 +1,5 @@
+{{prop_variable_field_name}}: {
+    default() {
+        return {{prop_variable_default}};
+    }
+},

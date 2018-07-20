@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+
 class CrudService
 {
 	public static $service_name = 'default';
@@ -44,6 +45,11 @@ class CrudService
 		return $table;
 	}
 
+	protected static function AfterCreate($create_data , &$item)
+	{
+		return true;
+	}
+
 	public static function FetchItems($data)
 	{
 		$error_tag = static::$model_name . ' FetchItems - ';
@@ -74,7 +80,7 @@ class CrudService
 		$fields = array();
 		foreach($table_config['fields'] as $field_name => $field_data)
 		{
-			if($field_data['hidden'] === true)
+			if($field_data['hidden'] === true || $field_data['db_ignored'] === true)
 			{
 				continue;
 			}
@@ -136,11 +142,16 @@ class CrudService
 
 		$required_fields = array();
 		$generate_calls = array();
+		$db_ignored = array();
 		foreach($table_config['fields'] as $field_name => $field_data)
 		{
 			if($field_data['generate'] != '')
 			{
 				$generate_calls[$field_name] = $field_data['generate'];
+			}
+			if($field_data['db_ignored'] != '')
+			{
+				$db_ignored[$field_name] = 1;
 			}
 			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['nullable'] === true)
 			{
@@ -228,13 +239,43 @@ class CrudService
 			$item = new $my_model;
 			foreach ($data as $field_name => $field_value)
 			{
+				if(isset($db_ignored[$field_name]))
+				{
+					continue;
+				}
 				$item->$field_name = $field_value;
 			}
 			foreach($generate_calls as $generate_call)
 			{
 				static::$generate_call($item);
 			}
+
+			DB::beginTransaction();
 			$item->save();
+
+			$result = static::AfterCreate($data , $item);
+			if($result === true)
+			{
+				DB::commit();
+			}
+			else if($result === false)
+			{
+				DB::rollBack();
+				$response = [
+					'status' => 'FAILED',
+					'reason' => $error_tag . 'CreateItem failed on post create step'
+				];
+				return $response;
+			}
+			else
+			{
+				//response is error string
+				$response = [
+					'status' => 'FAILED',
+					'reason' => $error_tag . 'CreateItem failed on post create step with details: ' . $response
+				];
+				return $response;
+			}
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -254,6 +295,7 @@ class CrudService
 	public static function DeleteItem($data)
 	{
 		$error_tag = static::$model_name . ' FetchItems - ';
+
 		$my_model = app()->getNamespace() . static::$model_name;
 
 		try
@@ -275,9 +317,13 @@ class CrudService
 		return $response;
 	}
 
-	public static function EditItem($model, $fields, $create_info, $edit_data, $error_tag)
+	public static function EditItem($data)
 	{
-		if (!isset($edit_data['id']))
+		$error_tag = static::$model_name . ' EditItem - ';
+
+		$my_model = app()->getNamespace() . static::$model_name;
+
+		if (!isset($data['id']))
 		{
 			$response = [
 				'status' => 'FAILED',
@@ -286,7 +332,7 @@ class CrudService
 			return $response;
 		}
 
-		if (!isset($edit_data['columns']))
+		if (!isset($data['columns']))
 		{
 			$response = [
 				'status' => 'FAILED',
@@ -295,18 +341,31 @@ class CrudService
 			return $response;
 		}
 
-		if (count($edit_data['columns']) == 0)
+		if (count($data['columns']) == 0)
 		{
 			$response = [
 				'status' => 'FAILED',
-				'reason' => $error_tag . 'No columns to save in edit item id ' . $edit_data['id']
+				'reason' => $error_tag . 'No columns to save in edit item id ' . $data['id']
 			];
 			return $response;
 		}
 
+		$table_detail = static::GetCrudTableDetails();
+		$table_config = $table_detail->GetConfig();
+
+		$db_ignored = array();
+		foreach($table_config['fields'] as $field_name => $field_data)
+		{
+			if($field_data['db_ignored'] != '')
+			{
+				$db_ignored[$field_name] = 1;
+			}
+		}
+
+
 		try
 		{
-			$item = $model::find($edit_data['id']);
+			$item = $my_model::find($data['id']);
 		} catch (\Exception $e)
 		{
 			$response = [
@@ -320,13 +379,17 @@ class CrudService
 		{
 			$response = [
 				'status' => 'FAILED',
-				'reason' => $error_tag . 'Could not find database information for item id: ' . $edit_data['id']
+				'reason' => $error_tag . 'Could not find database information for item id: ' . $data['id']
 			];
 			return $response;
 		}
 
-		foreach ($edit_data['columns'] as $column)
+		foreach ($data['columns'] as $column)
 		{
+			if(isset($db_ignored[$column['column_name']]))
+			{
+				continue;
+			}
 			if (!array_key_exists($column['column_name'], $item->getAttributes()))
 			{
 				$response = [

@@ -1,0 +1,3 @@
+{{watch_prop_field_name}}: function(val) {
+	this.{{watch_prop_data_field_name}} = val;
+},

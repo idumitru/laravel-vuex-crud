@@ -1,0 +1,5 @@
+{
+    tag: '{{load_components_tag}}',
+    fetch_action: '{{load_components_fetch_action}}FetchItems',
+{{server_filters}}
+},

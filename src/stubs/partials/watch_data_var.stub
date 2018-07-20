@@ -1,0 +1,6 @@
+{{watch_data_field_name}}: function(val) {
+	if(val !== this.{{watch_data_prop_field_name}})
+	{
+		this.$emit('update:{{watch_data_prop_field_name}}' , val)
+	}
+},

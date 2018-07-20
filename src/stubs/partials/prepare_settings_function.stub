@@ -1,0 +1,11 @@
+prepare_{{prepare_settings_field_name}}_settings: function()
+{
+    this.{{prepare_settings_field_name}}_settings = {
+        vuex_src: '{{prepare_settings_vuex_src}}GetItems',
+        data_field: '{{prepare_settings_field}}',
+        load_components: [
+{{prepare_settings_load_components}}
+        ]
+    };
+    this.{{prepare_settings_field_name}}_settings_ready = true;
+},

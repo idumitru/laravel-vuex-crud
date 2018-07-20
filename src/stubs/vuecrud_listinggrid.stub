@@ -1,4 +1,4 @@
-<style>
+<style scoped>
     .arrow {
         display: inline-block;
         vertical-align: middle;
@@ -1343,7 +1343,10 @@
 					if (result.value)
 					{
 						this.is_loading = true;
-						this.$store.dispatch(this.settings.delete_action, itemId).then(
+						let call_data = {
+							data: itemId
+                        };
+						this.$store.dispatch(this.settings.delete_action, call_data).then(
 							success_data => {
 								this.is_loading = false;
 							},

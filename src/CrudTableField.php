@@ -23,6 +23,7 @@ class CrudTableField
 	protected $with_filters = '';
 	protected $hide_for_create = false;
 	protected $generate = '';
+	protected $db_ignored = false;
 
 	/**
 	 * @var CrudTableDetail;
@@ -57,6 +58,7 @@ class CrudTableField
 		$config['with_filters'] = $this->with_filters;
 		$config['hide_for_create'] = $this->hide_for_create;
 		$config['generate'] = $this->generate;
+		$config['db_ignored'] = $this->db_ignored;
 
 		return $config;
 	}
@@ -180,6 +182,12 @@ class CrudTableField
 	{
 		$this->is_dropdown = true;
 		$this->dropdown_options = $options;
+		return $this;
+	}
+
+	public function db_ignore()
+	{
+		$this->db_ignored = true;
 		return $this;
 	}
 

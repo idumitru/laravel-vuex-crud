@@ -24,12 +24,23 @@
 {{settings_calls}}
         },
 
+        props: {
+{{prop_variables}}
+        },
+
 		data: function () {
 			return {
-{{variables}}
 {{settings_vars}}
+{{data_variables}}
 				is_loading: false,
 			}
+		},
+
+		watch: {
+{{watch_variables}}
+		},
+
+		computed: {
 		},
 
 		methods: {

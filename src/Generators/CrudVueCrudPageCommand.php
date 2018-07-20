@@ -6,11 +6,13 @@ use Illuminate\Console\Command;
 use Illuminate\Console\DetectsApplicationNamespace;
 use Illuminate\Filesystem\Filesystem;
 use SoftDreams\LaravelVuexCrud\Traits\CrudServiceGeneratorFunctions;
+use SoftDreams\LaravelVuexCrud\Traits\TabIndenter;
 
 class CrudVueCrudPageCommand extends Command
 {
 	use DetectsApplicationNamespace;
 	use CrudServiceGeneratorFunctions;
+	use TabIndenter;
 
 	/**
 	 * The console command name.
@@ -90,9 +92,11 @@ class CrudVueCrudPageCommand extends Command
 			return $this->error('Pages layout folder for app ' . $this->my_folder_name .  ' does not exits! (' . $pages_layout_path . ')');
 		}
 
+		$page_file_exists = false;
 		$page_file_path = $pages_layout_path . '/' . $this->my_page_name . '.vue';
 		if ($this->files->exists($page_file_path)) {
-			return $this->error('Page ' . $this->my_page_name .  ' already exits! (' . $page_file_path . ')');
+			$page_file_exists = true;
+			$this->info('Page ' . $this->my_page_name .  ' already exits! (' . $page_file_path . ')');
 		}
 
 		$components_path = $app_path . '/components';
@@ -116,7 +120,10 @@ class CrudVueCrudPageCommand extends Command
 			return $this->error('Unable to generate table configuration from crud service  ' . $this->my_service_name .  ' (' . $table_detail_class . '::GetCrudTableDetails()->GetConfig())');
 		}
 
-		$this->files->put($page_file_path, $this->compileCrudPage(__DIR__ . '/../stubs/vuecrud_crudpage.stub'));
+		if($page_file_exists === false)
+		{
+			$this->files->put($page_file_path, $this->compileCrudPage(__DIR__ . '/../stubs/vuecrud_crudpage.stub'));
+		}
 
 		$components_page_path = $components_path . '/' . $this->my_page_name;
 		$this->createDirectory($components_page_path);
@@ -386,18 +393,30 @@ class CrudVueCrudPageCommand extends Command
 	{
 		$stub = $this->files->get($stub_src);
 
+		$stubs = [
+			'server_filters' => $this->files->get(__DIR__ . '/../stubs/partials/server_filters.stub'),
+			'server_filters_item' => $this->files->get(__DIR__ . '/../stubs/partials/server_filters_item.stub'),
+			'load_components_item' => $this->files->get(__DIR__ . '/../stubs/partials/load_components_item.stub'),
+			'prepare_settings_function' => $this->files->get(__DIR__ . '/../stubs/partials/prepare_settings_function.stub'),
+			'prop_variable' => $this->files->get(__DIR__ . '/../stubs/partials/prop_variable.stub'),
+			'watch_prop_var' => $this->files->get(__DIR__ . '/../stubs/partials/watch_prop_var.stub'),
+			'watch_data_var' => $this->files->get(__DIR__ . '/../stubs/partials/watch_data_var.stub'),
+		];
+
 		$uc_item = ucwords($this->my_page_name);
 		$lower_item = strtolower($this->my_page_name);
 
 		$inputs = '';
-		$variables = '';
+		$prop_variables = [];
+		$watch_prop_variables = [];
+		$data_variables = [];
 		$warnings = '';
 		$call_data = '';
 		$reset_data = '';
 		$enable_load_data = false;
-		$load_components = '';
+		$load_components_items = [];
 		$load_settings_calls = '';
-		$load_settings_functions = '';
+		$load_settings_functions = [];
 		$settings_vars = '';
 		$destroy_calls = '';
 		foreach($this->table_config['fields'] as $field_name => $field_data)
@@ -408,7 +427,6 @@ class CrudVueCrudPageCommand extends Command
 			}
 
 			$input_item = '';
-			$field_variable = '';
 			$warning_item = '';
 			$call_item = '';
 			$reset_item = '';
@@ -427,83 +445,8 @@ class CrudVueCrudPageCommand extends Command
 					$nice_relation_name = ucwords(str_replace('_' , ' ' , $vuex_module));
 					$singular_relation_name = str_singular($nice_relation_name);
 
-					if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
-					{
-						$v_model = 'v-model';
-						if($field_data['field_type'] == 'number')
-						{
-							$v_model = 'v-model.number';
-						}
-						$input_item ='                <div>
-                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
-                    <select
-                            id="' . $uc_field . '"
-                            class="form-control"
-                            ' . $v_model . '="new_' . $field_name . '"
-                    >
-                        <option value="0">[Select ' . $singular_relation_name . ']</option>
-                        <option v-for="item in $store.state.' . $vuex_module . '.' . $vuex_module . '"
-                                :value="item.' . $relation_column . '">{{item.' . $relation_value . '}}
-                        </option>
-                    </select>
-                </div>' . "\n";
-					}
-					elseif ($field_data['field_type'] == 'smart_input')
-					{
-						$input_item ='                <div>
-                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
-                    <SmartInput
-                            id="' . $uc_field . '"
-                            info_name="' . $singular_relation_name . '"
-                            mode="vuex"
-                            :settings="' . $field_name . '_settings"
-                            :settings_ready.sync="' . $field_name . '_settings_ready"
-                            label="' . $relation_value . '"
-                            v-model="new_' . $field_name . '"
-                    ></SmartInput>
-				</div>' . "\n";
-
-						$settings_vars .= '                ' . $field_name . '_settings: {},';
-						$settings_vars .= '                ' . $field_name . '_settings_ready: false,';
-
-						$load_settings_calls .= '            this.prepare_' . $field_name . '_settings();';
-						$load_settings_functions .= '            prepare_' . $field_name . '_settings: function()
-            {
-                this.' . $field_name . '_settings = {
-                    vuex_src: \'' . $vuex_module . '/' . $vuex_module . 'GetItems\',
-                    data_field: \'' . $relation_value . '\',
-                    load_components: [
-                        {
-                            tag: \'' . $vuex_module . '\',
-                            fetch_action: \'' . $vuex_module . '/' . $vuex_module . 'FetchItems\',
-                        }
-                    ]
-                };
-                this.' . $field_name . '_settings_ready = true;
-            },' . "\n";
-					}
-					else
-					{
-						$input_item ='                <div><label for="' . $uc_field . '">' . $nice_field_name . '</label></div>' . "\n";
-					}
-
-					$field_variable = '				new_' . $field_name . ': 0,' . "\n";
-					$reset_item = '						this.new_' . $field_name . ' = 0;' . "\n";
-					if($field_data['can_be_0'] === false)
-					{
-						$warning_item = '				if (this.new_' . $field_name . ' === 0)
-				{
-					this.$swal({
-						type: \'error\',
-						title: \'Oops...\',
-						text: \'Please select ' . $singular_relation_name . ' field\',
-					});
-
-					return;
-				}' . "\n";
-					}
-
 					$server_filters = '';
+					$server_filters_items = [];
 					if($field_data['with_filters'] != '')
 					{
 						$config_filters = false;
@@ -532,21 +475,18 @@ class CrudVueCrudPageCommand extends Command
 							{
 								if ($relation_field_data['is_filter'] === true)
 								{
-									$server_filters .= '                            {
-								column: \'' . $relation_field_name . '\',
-								compare_type: \'' . $relation_field_data['filter_compare'] . '\',
-								data_getter: \'' . $relation_field_data['filter_source'] . '\'
-                            }
-';
+									$new_server_filter_item = $stubs['server_filters_item'];
+									$new_server_filter_item = str_replace('{{server_filters_item_column}}', $relation_field_name, $new_server_filter_item);
+									$new_server_filter_item = str_replace('{{server_filters_item_compare_type}}', $relation_field_data['filter_compare'], $new_server_filter_item);
+									$new_server_filter_item = str_replace('{{server_filters_item_data_getter}}', $relation_field_data['filter_source'], $new_server_filter_item);
+
+									$server_filters_items[] = $new_server_filter_item;
 								}
 							}
-
-							if($server_filters != '')
+							
+							if(count($server_filters_items) > 0)
 							{
-								$server_filters =
-									'                        server_filters: [' . "\n" .
-									$server_filters .
-									'                        ],' . "\n";
+								$server_filters = str_replace('{{server_filter_items}}', static::tabIndent(implode("\n" , $server_filters_items) , 1), $stubs['server_filters']);
 							}
 
 						}
@@ -555,12 +495,110 @@ class CrudVueCrudPageCommand extends Command
 							$this->info("Could not load relation configuration for crud service " . $field_data['with_filters'] . ". Perhaps you need to specify full namespace path");
 						}
 					}
-					$load_components .= '                    {
-						tag: \''. $vuex_module . '\',
-						fetch_action: \''. $vuex_module . '/'. $vuex_module . 'FetchItems\',
-' . $server_filters . '
-                    },' . "\n";
-					$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
+
+					if($field_data['field_type'] == 'string' || $field_data['field_type'] == 'number')
+					{
+						$v_model = 'v-model';
+						if($field_data['field_type'] == 'number')
+						{
+							$v_model = 'v-model.number';
+						}
+						$input_item ='                <div>
+                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
+                    <select
+                            id="' . $uc_field . '"
+                            class="form-control"
+                            ' . $v_model . '="new_' . $field_name . '"
+                    >
+                        <option value="0">[Select ' . $singular_relation_name . ']</option>
+                        <option v-for="item in $store.state.' . $vuex_module . '.' . $vuex_module . '"
+                                :value="item.' . $relation_column . '">{{item.' . $relation_value . '}}
+                        </option>
+                    </select>
+                </div>' . "\n";
+
+						$new_load_components_item = $stubs['load_components_item'];
+						$new_load_components_item = str_replace('{{load_components_tag}}', $vuex_module, $new_load_components_item);
+						$new_load_components_item = str_replace('{{load_components_fetch_action}}', $vuex_module . '/'. $vuex_module, $new_load_components_item);
+						$new_load_components_item = str_replace('{{server_filters}}', static::tabIndent($server_filters , 1), $new_load_components_item);
+						$load_components_items[] = $new_load_components_item;
+
+						$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
+					}
+					elseif ($field_data['field_type'] == 'smart_input')
+					{
+						$input_item ='                <div>
+                    <label for="' . $uc_field . '">' . $nice_field_name . '</label>
+                    <SmartInput
+                            id="' . $uc_field . '"
+                            info_name="' . $singular_relation_name . '"
+                            mode="vuex"
+                            :settings="' . $field_name . '_settings"
+                            :settings_ready.sync="' . $field_name . '_settings_ready"
+                            label="' . $relation_value . '"
+                            return_label="' . $relation_column . '"
+                            v-model="new_' . $field_name . '"
+                    ></SmartInput>
+				</div>' . "\n";
+
+						$settings_vars .= '                ' . $field_name . '_settings: {},' . "\n";
+						$settings_vars .= '                ' . $field_name . '_settings_ready: false,' ."\n";
+
+						$load_settings_calls .= '            this.prepare_' . $field_name . '_settings();';
+						
+						$new_prepare_settings_function = $stubs['prepare_settings_function'];
+						$new_prepare_settings_function = str_replace('{{prepare_settings_field_name}}', $field_name, $new_prepare_settings_function);
+						$new_prepare_settings_function = str_replace('{{prepare_settings_vuex_src}}', $vuex_module . '/' . $vuex_module, $new_prepare_settings_function);
+						$new_prepare_settings_function = str_replace('{{prepare_settings_field}}', $relation_value, $new_prepare_settings_function);
+						
+						$new_load_components_item = $stubs['load_components_item'];
+						$new_load_components_item = str_replace('{{load_components_tag}}', $vuex_module, $new_load_components_item);
+						$new_load_components_item = str_replace('{{load_components_fetch_action}}', $vuex_module . '/'. $vuex_module, $new_load_components_item);
+						$new_load_components_item = str_replace('{{server_filters}}', static::tabIndent($server_filters , 1), $new_load_components_item);
+
+						$new_prepare_settings_function = str_replace('{{prepare_settings_load_components}}', static::tabIndent($new_load_components_item, 3), $new_prepare_settings_function);
+
+						$load_settings_functions[] = $new_prepare_settings_function;
+					}
+					else
+					{
+						$input_item ='                <div><label for="' . $uc_field . '">' . $nice_field_name . '</label></div>' . "\n";
+					}
+
+					$prop_variable_stub = $stubs['prop_variable'];
+					$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+					$prop_variable_stub = str_replace('{{prop_variable_default}}', 0, $prop_variable_stub);
+
+					$prop_variables[] = $prop_variable_stub;
+
+					$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+					$watch_prop_var_stub = $stubs['watch_prop_var'];
+					$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+					$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+					$watch_prop_variables[] = $watch_prop_var_stub;
+
+					$watch_data_var_stub = $stubs['watch_data_var'];
+					$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+					$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+					$watch_prop_variables[] = $watch_data_var_stub;
+
+					$reset_item = '						this.new_' . $field_name . ' = 0;' . "\n";
+					if($field_data['can_be_0'] === false)
+					{
+						$warning_item = '				if (this.new_' . $field_name . ' === 0)
+				{
+					this.$swal({
+						type: \'error\',
+						title: \'Oops...\',
+						text: \'Please select ' . $singular_relation_name . ' field\',
+					});
+
+					return;
+				}' . "\n";
+					}
 				}
 				else if($field_data['is_dropdown'] === true)
 				{
@@ -591,7 +629,26 @@ class CrudVueCrudPageCommand extends Command
 					$input_item .= '                    </select>
                 </div>' . "\n";
 
-					$field_variable = '				new_' . $field_name . ': ' . $first_option['value'] . ',' . "\n";
+					$prop_variable_stub = $stubs['prop_variable'];
+					$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+					$prop_variable_stub = str_replace('{{prop_variable_default}}', (is_string($first_option['value'])?"'" . $first_option['value'] . "'":$first_option['value']), $prop_variable_stub);
+
+					$prop_variables[] = $prop_variable_stub;
+
+					$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+					$watch_prop_var_stub = $stubs['watch_prop_var'];
+					$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+					$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+					$watch_prop_variables[] = $watch_prop_var_stub;
+
+					$watch_data_var_stub = $stubs['watch_data_var'];
+					$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+					$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+					$watch_prop_variables[] = $watch_data_var_stub;
+
 					$reset_item = '						this.new_' . $field_name . ' = ' . $first_option['value'] . ';' . "\n";
 					$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
 				}
@@ -615,7 +672,26 @@ class CrudVueCrudPageCommand extends Command
                     >
                 </div>' . "\n";
 
-						$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
+						$prop_variable_stub = $stubs['prop_variable'];
+						$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+						$prop_variable_stub = str_replace('{{prop_variable_default}}', "''", $prop_variable_stub);
+
+						$prop_variables[] = $prop_variable_stub;
+
+						$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+						$watch_prop_var_stub = $stubs['watch_prop_var'];
+						$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+						$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+						$watch_prop_variables[] = $watch_prop_var_stub;
+
+						$watch_data_var_stub = $stubs['watch_data_var'];
+						$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+						$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+						$watch_prop_variables[] = $watch_data_var_stub;
+
 						$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
 						if($field_data['nullable'] === false)
 						{
@@ -645,7 +721,26 @@ class CrudVueCrudPageCommand extends Command
 	                ></date-picker>
                 </div>' . "\n";
 
-						$field_variable = '				new_' . $field_name . ': this.$moment().format(\'YYYY-MM-DD\'),' . "\n";
+						$prop_variable_stub = $stubs['prop_variable'];
+						$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+						$prop_variable_stub = str_replace('{{prop_variable_default}}', 'this.$moment().format(\'YYYY-MM-DD\')', $prop_variable_stub);
+
+						$prop_variables[] = $prop_variable_stub;
+
+						$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+						$watch_prop_var_stub = $stubs['watch_prop_var'];
+						$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+						$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+						$watch_prop_variables[] = $watch_prop_var_stub;
+
+						$watch_data_var_stub = $stubs['watch_data_var'];
+						$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+						$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+						$watch_prop_variables[] = $watch_data_var_stub;
+
 						$reset_item = '						this.new_' . $field_name . ' = this.$moment().format(\'YYYY-MM-DD\');' . "\n";
 						if($field_data['nullable'] === false)
 						{
@@ -677,7 +772,26 @@ class CrudVueCrudPageCommand extends Command
                     ></date-picker>
                 </div>' . "\n";
 
-						$field_variable = '				new_' . $field_name . ': this.$moment().format(\'YYYY-MM-DD hh:mm:ss\'),' . "\n";
+						$prop_variable_stub = $stubs['prop_variable'];
+						$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+						$prop_variable_stub = str_replace('{{prop_variable_default}}', 'this.$moment().format(\'YYYY-MM-DD hh:mm:ss\')', $prop_variable_stub);
+
+						$prop_variables[] = $prop_variable_stub;
+
+						$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+						$watch_prop_var_stub = $stubs['watch_prop_var'];
+						$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+						$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+						$watch_prop_variables[] = $watch_prop_var_stub;
+
+						$watch_data_var_stub = $stubs['watch_data_var'];
+						$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+						$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+						$watch_prop_variables[] = $watch_data_var_stub;
+
 						$reset_item = '						this.new_' . $field_name . ' = this.$moment().format(\'YYYY-MM-DD hh:mm:ss\');' . "\n";
 						if($field_data['nullable'] === false)
 						{
@@ -706,7 +820,26 @@ class CrudVueCrudPageCommand extends Command
                     ></textarea>
                 </div>' . "\n";
 
-						$field_variable = '				new_' . $field_name . ': \'\',' . "\n";
+						$prop_variable_stub = $stubs['prop_variable'];
+						$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
+						$prop_variable_stub = str_replace('{{prop_variable_default}}', "''", $prop_variable_stub);
+
+						$prop_variables[] = $prop_variable_stub;
+
+						$data_variables[] = 'new_' . $field_name . ': this.' . $field_name . ',';
+
+						$watch_prop_var_stub = $stubs['watch_prop_var'];
+						$watch_prop_var_stub = str_replace('{{watch_prop_field_name}}', $field_name, $watch_prop_var_stub);
+						$watch_prop_var_stub = str_replace('{{watch_prop_data_field_name}}', 'new_' . $field_name, $watch_prop_var_stub);
+
+						$watch_prop_variables[] = $watch_prop_var_stub;
+
+						$watch_data_var_stub = $stubs['watch_data_var'];
+						$watch_data_var_stub = str_replace('{{watch_data_field_name}}', 'new_' . $field_name, $watch_data_var_stub);
+						$watch_data_var_stub = str_replace('{{watch_data_prop_field_name}}', $field_name, $watch_data_var_stub);
+
+						$watch_prop_variables[] = $watch_data_var_stub;
+
 						$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
 						if($field_data['nullable'] === false)
 						{
@@ -733,7 +866,6 @@ class CrudVueCrudPageCommand extends Command
 
 
 			$inputs .= $input_item;
-			$variables .= $field_variable;
 			$warnings .= $warning_item;
 			$call_data .= $call_item;
 			$reset_data .= $reset_item;
@@ -742,10 +874,10 @@ class CrudVueCrudPageCommand extends Command
 		if($enable_load_data === true)
 		{
 			$stub = str_replace('{{load_data}}', '        	this.load_data();', $stub);
-			$variables .= '				loading_data_sources: [],' . "\n";
+			$data_variables[] = 'loading_data_sources: [],';
 
 			$load_functions_stub = $this->files->get(__DIR__ . '/../stubs/vuecrud_create_load_functions.stub');
-			$load_functions_stub = str_replace('{{load_components}}', $load_components, $load_functions_stub);
+			$load_functions_stub = str_replace('{{load_components}}', static::tabIndent(implode("\n" , $load_components_items) , 5), $load_functions_stub);
 
 			$stub = str_replace('{{loading_functions}}', $load_functions_stub, $stub);
 
@@ -757,7 +889,9 @@ class CrudVueCrudPageCommand extends Command
 			$stub = str_replace('{{loading_functions}}', '', $stub);
 		}
 		$stub = str_replace('{{inputs}}', $inputs, $stub);
-		$stub = str_replace('{{variables}}', $variables, $stub);
+		$stub = str_replace('{{prop_variables}}', static::tabIndent(implode("\n", $prop_variables), 3), $stub);
+		$stub = str_replace('{{data_variables}}', static::tabIndent(implode("\n", $data_variables), 4), $stub);
+		$stub = str_replace('{{watch_variables}}', static::tabIndent(implode("\n", $watch_prop_variables), 3), $stub);
 		$stub = str_replace('{{warnings}}', $warnings, $stub);
 		$stub = str_replace('{{call_data}}', $call_data, $stub);
 		$stub = str_replace('{{reset_data}}', $reset_data, $stub);
@@ -767,7 +901,7 @@ class CrudVueCrudPageCommand extends Command
 		$stub = str_replace('{{page}}', $this->my_page_name, $stub);
 		$stub = str_replace('{{settings_calls}}', $load_settings_calls, $stub);
 		$stub = str_replace('{{settings_vars}}', $settings_vars, $stub);
-		$stub = str_replace('{{settings_functions}}', $load_settings_functions, $stub);
+		$stub = str_replace('{{settings_functions}}', static::tabIndent(implode("\n" , $load_settings_functions), 3), $stub);
 		$stub = str_replace('{{destroy_calls}}', $destroy_calls, $stub);
 
 		return $stub;

@@ -1,15 +1,33 @@
-<style>
+<style scoped>
+    ul {
+        max-height: 200px;
+        overflow-y: scroll;
+        border: 1px solid #ced4da;
+        border-top: 0;
+        position: absolute;
+        left: 0;
+        width: 100%;
+        background: #fff;
+        margin: 0;
+        padding: 10px;
+        list-style-type: none;
+    }
+
     li {
         cursor: pointer;
     }
+
+    .smartinput--select {
+        position: relative;
+    }
+
 </style>
 <template>
     <div>
-
+        <div class="input-group">
         <input
                 @focus="input_focused"
-                @blur="input_blurred"
-                @input="onChange"
+
                 type="text"
                 class="form-control"
                 id="input_text_id"
@@ -17,17 +35,19 @@
                 :placeholder="placeholder"
                 v-model="input_data"
         >
-        <div>
+            <div class="input-group-append">
+                <button class="btn btn-outline-secondary" type="button">Create</button>
+            </div>
+        </div>
+        <div class="smartinput--select">
             <ul
-                    v-show="(input_has_focus || dd_has_focus) && data_ready && data_feed.length > 0"
-                    @focus="dd_focused"
-                    @blur="dd_blurred"
+                    v-show="input_has_focus && data_ready && data_feed.length > 0"
             >
                 <template v-if="label===''">
-                    <li v-for="data in data_feed"><div @click="input_data=data">{{data}}</div></li>
+                    <li v-for="data in data_feed" @click="selectItem(data)">{{data}}</li>
                 </template>
                 <template v-else>
-                    <li v-for="data in data_feed" @click="input_data=data[label]"><div>--{{data[label]}}</div></li>
+                    <li v-for="data in data_feed" @click="selectItem(data)">{{data[label]}}</li>
                 </template>
             </ul>
         </div>
@@ -44,7 +64,11 @@
 			info_name: String,
 			settings: Object,
 			settings_ready: Boolean,
-			value: String,
+			value: {
+				default () {
+					return '';
+                }
+            },
 
 			mode: {
 				type: String,
@@ -81,6 +105,13 @@
 					return '';
 				}
 			},
+			return_label: {
+				type: String,
+				default()
+				{
+					return '';
+				}
+			},
 		},
 
 		watch: {
@@ -106,7 +137,7 @@
 				input_data: '',
 				data_ready: false,
 				input_has_focus: false,
-				dd_has_focus: false,
+                selected_item: {},
 
 				loading_data_sources: [],
 				is_loading: false,
@@ -173,27 +204,33 @@
 					this.input_has_focus = true;
 				});
 			},
-			input_blurred: function() {
-				this.$nextTick(() => {
-					this.input_has_focus = false;
-				});
-			},
-			dd_focused: function() {
-				this.$nextTick(() => {
-					this.dd_has_focus = true;
-				});
-			},
-			dd_blurred: function() {
-				this.$nextTick(() => {
-					this.dd_has_focus = false;
-				});
-			},
 			isString: function (value) {
 				return typeof value === 'string' || value instanceof String;
 			},
 			isNumber : function (value) {
 				return typeof value === 'number' && isFinite(value);
 			},
+            selectItem(data)
+            {
+				this.selected_item = data;
+				if(this.label === '')
+                {
+					this.input_data = data;
+					this.$emit('input', data);
+				}
+                else
+                {
+                	if(this.return_label === '')
+                    {
+						this.$emit('input', data[this.label]);
+                    }
+                    else
+                    {
+						this.$emit('input', data[this.return_label]);
+                    }
+					this.input_data = data[this.label];
+				}
+            },
 			verify_settings: function () {
 				if (this.mode === 'vuex')
 				{
@@ -276,7 +313,7 @@
 
 						this.$store.dispatch(load_components[i].fetch_action, call_data).then(
 							success_data => {
-								this.load_complete(call_data.tag);
+								this.load_complete(call_data.data.tag);
 								this.check_load_complete();
 							},
 							error_data => {
@@ -285,7 +322,7 @@
 									title: 'Oops...',
 									text: error_data,
 								});
-								this.load_complete(call_data.tag);
+								this.load_complete(call_data.data.tag);
 								this.check_load_complete();
 							}
 						);
@@ -322,11 +359,45 @@
 				{
 					this.is_loading = false;
 					this.data_ready = true;
-				}
-			},
 
-			onChange: function () {
-				this.$emit('input', this.input_data);
+					if(this.mode === 'vuex')
+					{
+						let data_feed = this.$store.getters[this.settings.vuex_src];
+						if(this.label === '')
+                        {
+							for(let i = 0 ; i < data_feed.length ; i++)
+							{
+                                if(data_feed[i] === this.value)
+                                {
+                                    this.selected_item = data_feed[i];
+                                    this.input_data = data_feed[i];
+                                }
+							}
+                        }
+                        else if(this.return_label !== '')
+                        {
+							for(let i = 0 ; i < data_feed.length ; i++)
+							{
+								if(data_feed[i][this.return_label] === this.value)
+								{
+									this.selected_item = data_feed[i];
+									this.input_data = data_feed[i][this.label];
+								}
+							}
+                        }
+                        else
+                        {
+							for(let i = 0 ; i < data_feed.length ; i++)
+							{
+								if(data_feed[i][this.label] === this.value)
+								{
+									this.selected_item = data_feed[i];
+									this.input_data = data_feed[i][this.label];
+								}
+							}
+                        }
+					}
+				}
 			},
 		}
 	}
