@@ -153,7 +153,7 @@ class CrudService
 			{
 				$db_ignored[$field_name] = 1;
 			}
-			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['nullable'] === true)
+			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['nullable'] === true || $field_data['has_default_value'] === true)
 			{
 				continue;
 			}
@@ -287,7 +287,7 @@ class CrudService
 
 		$response = [
 			'status' => 'OK',
-			'data' => $item->toArray()
+			'data' => $item
 		];
 		return $response;
 	}
@@ -416,7 +416,7 @@ class CrudService
 
 		$response = [
 			'status' => 'OK',
-			'data' => ''
+			'data' => $item
 		];
 
 		return $response;

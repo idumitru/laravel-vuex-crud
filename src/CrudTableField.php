@@ -9,6 +9,7 @@ class CrudTableField
 	protected $hidden = false;
 	protected $nullable = false;
 	protected $can_be_0 = false;
+	protected $has_default_value = false;
 	protected $default_value = '';
 	protected $unique = false;
 	protected $field_type = '';
@@ -44,6 +45,7 @@ class CrudTableField
 		$config['hidden'] = $this->hidden;
 		$config['nullable'] = $this->nullable;
 		$config['can_be_0'] = $this->can_be_0;
+		$config['has_default_value'] = $this->has_default_value;
 		$config['default_value'] = $this->default_value;
 		$config['unique'] = $this->unique;
 		$config['field_type'] = $this->field_type;
@@ -109,6 +111,7 @@ class CrudTableField
 
 	public function set_default($value)
 	{
+		$this->has_default_value = true;
 		$this->default_value = $value;
 		return $this;
 	}
