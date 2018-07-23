@@ -55,7 +55,7 @@ npm install uuid --save-dev
 npm install vue-moment --save-dev
 
 Commands:
-
+```
 $ php artisan vuexcrud:laravel:make:api ApiName {section}
 $ php artisan vuexcrud:laravel:make:crudservice ApiName ModelName ServiceName {section}
 $ php artisan vuexcrud:laravel:make:service ApiName ServiceName {section}
@@ -65,3 +65,4 @@ $ php artisan vuexcrud:vue:make:layout AppName LayoutName {section}
 $ php artisan vuexcrud:vue:make:page AppName LayoutName PageName {section}
 $ php artisan vuexcrud:vue:make:crudpage AppName LayoutName ServiceName VuexModule PageName {section}
 $ php artisan vuexcrud:vuex:make:module AppName ModuleName {section}
+```
