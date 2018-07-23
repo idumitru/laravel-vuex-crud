@@ -251,7 +251,7 @@ class CrudVueCrudPageCommand extends Command
 ';
 			}
 
-			if($field_data['primary'] === true || $field_data['hidden'] === true)
+			if($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['vue_hidden'] === true)
 			{
 				continue;
 			}

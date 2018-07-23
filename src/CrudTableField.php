@@ -25,6 +25,7 @@ class CrudTableField
 	protected $hide_for_create = false;
 	protected $generate = '';
 	protected $db_ignored = false;
+	protected $vue_hidden = false;
 
 	/**
 	 * @var CrudTableDetail;
@@ -61,6 +62,7 @@ class CrudTableField
 		$config['hide_for_create'] = $this->hide_for_create;
 		$config['generate'] = $this->generate;
 		$config['db_ignored'] = $this->db_ignored;
+		$config['vue_hidden'] = $this->vue_hidden;
 
 		return $config;
 	}
@@ -191,6 +193,12 @@ class CrudTableField
 	public function db_ignore()
 	{
 		$this->db_ignored = true;
+		return $this;
+	}
+
+	public function vue_hidden()
+	{
+		$this->vue_hidden = true;
 		return $this;
 	}
 
