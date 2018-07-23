@@ -99,7 +99,7 @@ class CrudLaravelCrudServiceCommand extends Command
 
 		$model_item = new $this->my_model_name();
 
-		$table = $model_item->getTable();
+		$table = \DB::getTablePrefix() . $model_item->getTable();
 		$tableDescription = DB::select('DESCRIBE ' . $table);
 
 		//$this->info('Schema for Model: ' . $this->my_model_name);

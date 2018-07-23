@@ -47,12 +47,9 @@ php artisan serve
 6. Point your browser to http://127.0.0.1:8000/ and you should see the new laravel app you just created
 
 required npm:
-npm install es6-promise --save-dev
-npm install vue-sweetalert2 --save-dev
-npm install vue2-datepicker --save-dev
-//npm install vue-select --save-dev
-npm install uuid --save-dev
-npm install vue-moment --save-dev
+```
+npm install es6-promise vue-sweetalert2 vue2-datepicker uuid vue-moment bootstrap-vue --save-dev
+```
 
 Commands:
 ```

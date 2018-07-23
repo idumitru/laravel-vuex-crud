@@ -15,7 +15,7 @@ import AppRouter from './{{app_router}}.vue';
 import VueSweetalert2 from 'vue-sweetalert2';
 import DatePicker from 'vue2-datepicker';
 
-const uuidv1 = require('uuid/v1');
+Vue.prototype.$uuidv1 = require('uuid/v1');
 
 Vue.use(Vuex);
 Vue.use(VueRouter);
