@@ -384,22 +384,22 @@ class CrudService
 			return $response;
 		}
 
-		foreach ($data['columns'] as $column)
+		foreach ($data['columns'] as $column_name => $column_value)
 		{
-			if(isset($db_ignored[$column['column_name']]))
+			if(isset($db_ignored[$column_name]))
 			{
 				continue;
 			}
-			if (!array_key_exists($column['column_name'], $item->getAttributes()))
+			if (!array_key_exists($column_name, $item->getAttributes()))
 			{
 				$response = [
 					'status' => 'FAILED',
-					'reason' => $error_tag . 'Column name ' . $column['column_name'] . ' does not exist in EditItem'
+					'reason' => $error_tag . 'Column name ' . $column_name . ' does not exist in EditItem'
 				];
 				return $response;
 			}
 
-			$item[$column['column_name']] = $column['column_value'];
+			$item[$column_name] = $column_value;
 		}
 
 		try
