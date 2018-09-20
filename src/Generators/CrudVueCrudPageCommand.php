@@ -559,6 +559,8 @@ class CrudVueCrudPageCommand extends Command
 						$new_prepare_settings_function = str_replace('{{prepare_settings_load_components}}', static::tabIndent($new_load_components_item, 3), $new_prepare_settings_function);
 
 						$load_settings_functions[] = $new_prepare_settings_function;
+
+						$call_item = '					    ' . $field_name . ': this.new_' . $field_name . ',' . "\n";
 					}
 					else
 					{
@@ -674,7 +676,21 @@ class CrudVueCrudPageCommand extends Command
 
 						$prop_variable_stub = $stubs['prop_variable'];
 						$prop_variable_stub = str_replace('{{prop_variable_field_name}}', $field_name, $prop_variable_stub);
-						$prop_variable_stub = str_replace('{{prop_variable_default}}', "''", $prop_variable_stub);
+						if($field_data['has_default_value'] == TRUE)
+						{
+							if($field_data['field_type'] == 'string')
+							{
+								$prop_variable_stub = str_replace('{{prop_variable_default}}', "'". $field_data['default_value'] ."'", $prop_variable_stub);
+							}
+							else //number
+							{
+								$prop_variable_stub = str_replace('{{prop_variable_default}}', $field_data['default_value'], $prop_variable_stub);
+							}
+						}
+						else
+						{
+							$prop_variable_stub = str_replace('{{prop_variable_default}}', "''", $prop_variable_stub);
+						}
 
 						$prop_variables[] = $prop_variable_stub;
 
@@ -695,7 +711,7 @@ class CrudVueCrudPageCommand extends Command
 						$reset_item = '						this.new_' . $field_name . ' = \'\';' . "\n";
 						if($field_data['nullable'] === false)
 						{
-							$warning_item = '				if (this.new_' . $field_name . '.trim() === \'\')
+							$warning_item = '				if (String(this.new_' . $field_name . ').trim() === \'\')
 				{
 					this.$swal({
 						type: \'error\',

@@ -131,7 +131,7 @@ class CrudService
 
 	}
 
-	public static function CreateItem($data)
+	public static function CreateItem($data , $post_process = '', $post_process_data = '')
 	{
 		$error_tag = static::$model_name . ' CreateItem - ';
 
@@ -252,6 +252,20 @@ class CrudService
 
 			DB::beginTransaction();
 			$item->save();
+
+			if($post_process != '')
+			{
+				$result = static::$post_process($item , $post_process_data);
+				if($result['status'] == 'FAILED')
+				{
+					DB::rollBack();
+					$response = [
+						'status' => 'FAILED',
+						'reason' => $error_tag . 'CreateItem failed on post process step (' . $result['reason'] . ')'
+					];
+					return $response;
+				}
+			}
 
 			$result = static::AfterCreate($data , $item);
 			if($result === true)
