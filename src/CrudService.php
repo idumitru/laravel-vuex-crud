@@ -308,7 +308,7 @@ class CrudService
 
 	public static function DeleteItem($data)
 	{
-		$error_tag = static::$model_name . ' FetchItems - ';
+		$error_tag = static::$model_name . ' DeleteItems - ';
 
 		$my_model = app()->getNamespace() . static::$model_name;
 

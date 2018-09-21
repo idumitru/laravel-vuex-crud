@@ -419,6 +419,7 @@ class CrudVueCrudPageCommand extends Command
 		$load_settings_functions = [];
 		$settings_vars = '';
 		$destroy_calls = '';
+
 		foreach($this->table_config['fields'] as $field_name => $field_data)
 		{
 			if($field_data['is_filter'] === false && ($field_data['primary'] === true || $field_data['hidden'] === true || $field_data['hide_for_create'] === true))
