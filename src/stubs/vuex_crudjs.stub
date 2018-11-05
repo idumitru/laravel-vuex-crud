@@ -238,13 +238,14 @@ function generateMutations(mutations, var_name, tag)
 	mutations[tag + 'EditItem'] = function (state, edit_data) {
 		for (let i = 0; i < state[var_name].length; i++)
 		{
-			if (state[var_name][i].id === edit_data.id)
+			if (state[var_name][i].id === edit_data.data.id)
 			{
-				for (let j = 0; j < edit_data.columns.length; j++)
-				{
-					if (edit_data.columns[j].column_name in state[var_name][i])
-					{
-						state[var_name][i][edit_data.columns[j].column_name] = edit_data.columns[j].column_value;
+				for (var column in edit_data.data.columns) {
+					if (edit_data.data.columns.hasOwnProperty(column)) {
+						if (column in state[var_name][i])
+						{
+							state[var_name][i][column] = edit_data.data.columns[column];
+						}
 					}
 				}
 				break;
