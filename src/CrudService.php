@@ -286,7 +286,7 @@ class CrudService
 				//response is error string
 				$response = [
 					'status' => 'FAILED',
-					'reason' => $error_tag . 'CreateItem failed on post create step with details: ' . $response
+					'reason' => $error_tag . 'CreateItem failed on post create step with details: ' . $result
 				];
 				return $response;
 			}
