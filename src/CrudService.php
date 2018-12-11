@@ -80,10 +80,10 @@ class CrudService
 		$fields = array();
 		foreach($table_config['fields'] as $field_name => $field_data)
 		{
-			if($field_data['hidden'] === true || $field_data['db_ignored'] === true)
-			{
-				continue;
-			}
+//			if($field_data['hidden'] === true || $field_data['db_ignored'] === true)
+//			{
+//				continue;
+//			}
 
 			$fields[] = $field_name;
 		}
