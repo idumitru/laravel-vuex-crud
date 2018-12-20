@@ -234,6 +234,8 @@ class CrudService
 //			}
 //		}
 
+		DB::beginTransaction();
+
 		try
 		{
 			$item = new $my_model;
@@ -250,7 +252,6 @@ class CrudService
 				static::$generate_call($item);
 			}
 
-			DB::beginTransaction();
 			$item->save();
 
 			if($post_process != '')
@@ -292,6 +293,7 @@ class CrudService
 			}
 		} catch (\Exception $e)
 		{
+			DB::rollBack();
 			$response = [
 				'status' => 'FAILED',
 				'reason' => $error_tag . 'CreateItem failed on database: ' . $e->getMessage()
