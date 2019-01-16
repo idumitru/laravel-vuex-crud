@@ -19,7 +19,8 @@ class CrudService
 		'CreateItem',
 		'FetchItems',
 		'DeleteItem',
-		'EditItem'
+		'EditItem',
+		'EditItems',
 	];
 
 	protected static $extra_methods = [];
@@ -433,6 +434,116 @@ class CrudService
 		$response = [
 			'status' => 'OK',
 			'data' => $item
+		];
+
+		return $response;
+	}
+
+	public static function EditItems($data)
+	{
+		$error_tag = static::$model_name . ' EditItems - ';
+
+		$my_model = app()->getNamespace() . static::$model_name;
+
+		if (!isset($data['items']))
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'Missing items field'
+			];
+			return $response;
+		}
+
+		if (!isset($data['columns']))
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'Missing item edit columns field'
+			];
+			return $response;
+		}
+
+		if (count($data['columns']) == 0)
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'No columns to save in edit items',
+			];
+			return $response;
+		}
+
+		$table_detail = static::GetCrudTableDetails();
+		$table_config = $table_detail->GetConfig();
+
+		$db_ignored = array();
+		foreach($table_config['fields'] as $field_name => $field_data)
+		{
+			if($field_data['db_ignored'] != '')
+			{
+				$db_ignored[$field_name] = 1;
+			}
+		}
+
+		try
+		{
+			$items = $my_model::find($data['items'])->pluck('id');
+		} catch (\Exception $e)
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'Error retrieving database data in EditItem: ' . $e->getMessage()
+			];
+			return $response;
+		}
+
+		if ($items->count() == 0)
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'Could not find database information for items'
+			];
+			return $response;
+		}
+
+		$update_data = [];
+
+		//verify columns
+		$item = $my_model::find($items[0]);
+		if($item && $item->count())
+		{
+			foreach ($data['columns'] as $column_name => $column_value)
+			{
+				if(isset($db_ignored[$column_name]))
+				{
+					continue;
+				}
+
+				if (!array_key_exists($column_name, $item->getAttributes()))
+				{
+					$response = [
+						'status' => 'FAILED',
+						'reason' => $error_tag . 'Column name ' . $column_name . ' does not exist in EditItems'
+					];
+					return $response;
+				}
+			}
+		}
+
+		try
+		{
+			$my_model::whereIn('id', $data['items'])->update($data['columns']);
+		} catch (\Exception $e)
+		{
+			$response = [
+				'status' => 'FAILED',
+				'reason' => $error_tag . 'Error saving database data in EditItem: ' . $e->getMessage()
+			];
+			return $response;
+		}
+
+		$response = [
+			'status' => 'OK',
+			'data' => $items
 		];
 
 		return $response;
